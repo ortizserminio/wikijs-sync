@@ -1,0 +1,9 @@
+# Esto es lo que pondría en su raíz un REPOSITORIO DE CONOCIMIENTO
+# (el que tiene los .md), NO el repo de la herramienta.
+#
+# Fichero: .gitlab-ci.yml
+
+include:
+  - project: 'GRUPO/wikijs-sync'                 # el repo de la herramienta
+    ref: v1                                       # versión/etiqueta de la plantilla
+    file: '/templates/wikijs-sync.gitlab-ci.yml'  # la plantilla que creamos arriba

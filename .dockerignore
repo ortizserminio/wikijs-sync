@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+tests/
+docs/
+.env
+*.md
+prueba_cliente.py
+prueba_sync.py

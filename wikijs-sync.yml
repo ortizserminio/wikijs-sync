@@ -1,0 +1,4 @@
+base_path: pruebas/mi-proyecto   # rama de conocimiento en la wiki
+docs_dir: docs                   # carpeta del repositorio con los .md
+locale: es                       # idioma de las páginas
+tag: gitlab-sync                 # etiqueta que marca las páginas gestionadas

@@ -1,0 +1,22 @@
+# Plantilla de CI reutilizable para sincronizar un repositorio de
+# conocimiento con Wiki.js. Los repos de conocimiento la incluyen con "include".
+#
+# Variante B: usa la imagen oficial de Python e instala la herramienta al vuelo.
+# No necesita Container Registry. Es más lenta pero más autónoma.
+
+sync-wikijs:
+  stage: deploy
+  image: python:3.12-slim
+  rules:
+    # Solo se ejecuta en la rama por defecto (master).
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  # Evita que dos sincronizaciones se pisen si hay dos push seguidos.
+  resource_group: wikijs-sync
+  variables:
+    # Versión de la herramienta a instalar desde su repositorio.
+    WIKIJS_SYNC_REF: "main"
+  script:
+    # 1. Instalar la herramienta wikijs-sync desde su repositorio Git.
+    - pip install --no-cache-dir "git+https://gitlab.example.com/GRUPO/wikijs-sync.git@${WIKIJS_SYNC_REF}"
+    # 2. Ejecutar la sincronización con reconciliación completa y borrado.
+    - python -m wikijs_sync --config wikijs-sync.yml --prune

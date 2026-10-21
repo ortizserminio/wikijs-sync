@@ -1,0 +1,20 @@
+# Entorno virtual: NO se sube, cada quien lo recrea
+.venv/
+venv/
+env/
+
+# Cachés de Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Pruebas
+.pytest_cache/
+.mypy_cache/
+
+# Secretos
+.env
+
+# Editor
+.vscode/
+.idea/
