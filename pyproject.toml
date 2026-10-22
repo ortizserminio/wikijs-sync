@@ -1,0 +1,19 @@
+[project]
+name = "wikijs-sync"
+version = "0.1.0"
+description = "Sincroniza ficheros Markdown de un repositorio con Wiki.js vía su API GraphQL."
+requires-python = ">=3.12"
+dependencies = [
+    "requests>=2.31",
+    "PyYAML>=6.0",
+]
+
+[project.scripts]
+wikijs-sync = "wikijs_sync.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["wikijs_sync"]

@@ -1,5 +1,6 @@
 # Entorno virtual: NO se sube, cada quien lo recrea
 .venv/
+.venv-linux/
 venv/
 env/
 
