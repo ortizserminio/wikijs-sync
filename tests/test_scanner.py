@@ -1,7 +1,7 @@
 from wikijs_sync.scanner import slugify, compute_path, extract_title
 
 def test_slugify_acentos_y_espacios():
-    assert slugify("Guía de Uso") == "guia-de-uso"
+    assert slugify("Guía de Uso") == "ESTO-ESTA-MAL"
 
 def test_slugify_mayusculas():
     assert slugify("REQUISITOS") == "requisitos"
