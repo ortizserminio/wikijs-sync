@@ -3,7 +3,7 @@ import re
 import unicodedata
 from pathlib import Path
 
-from wikijs_sync.transform import split_front_matter, rewrite_links, add_notice
+from wikijs_sync.transform import split_front_matter, rewrite_links, add_notice, rewrite_images
 
 
 def slugify(text):
@@ -82,7 +82,7 @@ def extract_title(content, fallback):
     return fallback
 
 
-def scan(docs_dir, base_path, default_locale="es"):
+def scan(docs_dir, base_path, default_locale="es", client=None):
     """Devuelve una lista de dicts, uno por cada .md encontrado.
 
     Separa el front matter y usa sus campos:
@@ -112,6 +112,8 @@ def scan(docs_dir, base_path, default_locale="es"):
         known_files.add(f"{carpeta}/{nombre_base}" if carpeta else nombre_base)
 
     broken = []  # se irá llenando con (fichero_origen, destino_roto)
+    uploaded = {}  # imágenes ya subidas {ruta: nombre_en_wiki}, para no repetir
+    n_imagenes = 0
     paginas = []
     for fichero in ficheros:
         rel = fichero.relative_to(docs_dir)
@@ -134,6 +136,17 @@ def scan(docs_dir, base_path, default_locale="es"):
         if not isinstance(tags, list):
             tags = [tags]
 
+        # Si hay cliente, subir las imágenes locales y reescribir sus rutas.
+        # (Sin cliente -por ejemplo en los tests- no se tocan las imágenes.)
+        if client is not None:
+            antes = len(uploaded)
+            contenido = rewrite_images(
+                contenido, rel_str, docs_dir,
+                upload=lambda ruta, nombre: (client.upload_asset(ruta, nombre), nombre)[1],
+                uploaded=uploaded,
+            )
+            n_imagenes += len(uploaded) - antes
+
         # Orden importante: primero reescribir enlaces, después anteponer el aviso.
         contenido = rewrite_links(
             contenido, rel_sin_idioma, compute_path, base_path,
@@ -150,6 +163,10 @@ def scan(docs_dir, base_path, default_locale="es"):
             "locale": locale,
             "source": rel_str,
         })
+
+    # Avisar de las imágenes subidas (si las hubo).
+    if n_imagenes:
+        print(f"  {n_imagenes} imagen(es) subida(s) a la wiki.")
 
     # Avisar de los enlaces rotos encontrados (si los hay).
     if broken:

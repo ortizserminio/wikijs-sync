@@ -98,3 +98,39 @@ def test_sin_known_files_no_detecta_rotos():
     out = rewrite_links(content, "guia.md", compute_path, "pruebas", broken=rotos)
     assert rotos == []
     assert "(/pruebas/otro)" in out   # el enlace se reescribe igual
+
+
+from wikijs_sync.transform import rewrite_images
+
+
+def test_imagen_externa_no_se_toca():
+    # Una imagen con URL http no se sube ni se reescribe
+    subidas = []
+    content = "![foto](https://ejemplo.com/foto.png)"
+    out = rewrite_images(content, "guia.md", "/tmp/docs",
+                         upload=lambda ruta, nombre: subidas.append(nombre) or nombre)
+    assert out == content
+    assert subidas == []
+
+
+def test_imagen_inexistente_no_se_toca():
+    # Si el fichero de imagen no existe en disco, se deja el enlace tal cual
+    subidas = []
+    content = "![foto](no-existe.png)"
+    out = rewrite_images(content, "guia.md", "/tmp/docs-que-no-existe",
+                         upload=lambda ruta, nombre: subidas.append(nombre) or nombre)
+    assert out == content
+    assert subidas == []
+
+
+def test_imagen_local_se_sube_y_reescribe(tmp_path):
+    # Creamos una imagen de verdad en un docs temporal y comprobamos que se "sube"
+    # (con una función falsa) y que la ruta se reescribe a /<nombre>.
+    docs = tmp_path
+    (docs / "logo.png").write_bytes(b"fake-image-bytes")
+    subidas = []
+    content = "Mira el ![logo](logo.png) del proyecto."
+    out = rewrite_images(content, "guia.md", str(docs),
+                         upload=lambda ruta, nombre: subidas.append(nombre) or nombre)
+    assert "![logo](/logo.png)" in out
+    assert subidas == ["logo.png"]

@@ -4,8 +4,12 @@ class WikiJsClient:
     """Cliente mínimo para la API GraphQL de Wiki.js."""
 
     def __init__(self, url, token):
-        # /graphql es el único endpoint de la API de Wiki.js
-        self.endpoint = url.rstrip("/") + "/graphql"
+        self.base_url = url.rstrip("/")
+        # /graphql es el endpoint de la API GraphQL (páginas)
+        self.endpoint = self.base_url + "/graphql"
+        # /u es el endpoint REST para SUBIR ficheros (las imágenes no van por GraphQL)
+        self.upload_endpoint = self.base_url + "/u"
+        self.token = token
         self.headers = {"Authorization": f"Bearer {token}"}
 
     def _run(self, query, variables=None):
@@ -112,3 +116,34 @@ class WikiJsClient:
         result = data["pages"]["delete"]["responseResult"]
         if not result["succeeded"]:
             raise RuntimeError(result["message"])
+
+    def upload_asset(self, file_path, filename=None, folder_id=0):
+        """Sube un fichero (imagen) a Wiki.js por el endpoint REST /u.
+
+        Las imágenes NO se suben por GraphQL, sino con un POST multipart a /u.
+        El formulario lleva DOS campos, ambos llamados 'mediaUpload':
+          1) un JSON con el folderId (carpeta de destino; 0 = raíz)
+          2) el fichero binario
+        (Formato descubierto espiando la petición del editor de la propia wiki.)
+        """
+        import json
+        import os
+
+        if filename is None:
+            filename = os.path.basename(file_path)
+
+        with open(file_path, "rb") as f:
+            files = [
+                # Primer campo: el JSON con el folderId.
+                ("mediaUpload", (None, json.dumps({"folderId": folder_id}), "application/json")),
+                # Segundo campo: el fichero en sí.
+                ("mediaUpload", (filename, f, "application/octet-stream")),
+            ]
+            resp = requests.post(
+                self.upload_endpoint,
+                files=files,
+                headers=self.headers,   # solo el Authorization; requests pone el multipart
+                timeout=60,
+            )
+        resp.raise_for_status()
+        return resp.status_code == 200

@@ -26,7 +26,11 @@ def sync(client, cfg, dry_run=False, prune=False):
     - dry_run: no toca la wiki, solo muestra lo que haría.
     - prune: borra las páginas gestionadas que ya no están en el repo.
     """
-    deseadas = scan(cfg.docs_dir, cfg.base_path, default_locale=cfg.locale)
+    # En dry-run no subimos imágenes (no se toca la wiki); si no, pasamos el cliente.
+    deseadas = scan(
+        cfg.docs_dir, cfg.base_path, default_locale=cfg.locale,
+        client=None if dry_run else client,
+    )
     en_wiki = _wiki_pages_by_path(client, cfg)
     # Claves deseadas como (path, locale), porque una ruta puede existir en varios idiomas.
     claves_deseadas = {(p["path"], p["locale"]) for p in deseadas}
