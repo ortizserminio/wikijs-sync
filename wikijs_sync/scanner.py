@@ -22,6 +22,26 @@ def slugify(text):
     return text.strip("-")
 
 
+def split_locale(filename, default_locale):
+    """Separa el locale (idioma) del nombre de un fichero según su sufijo.
+
+    Convención: un sufijo de 2 letras antes de .md indica el idioma.
+      'requisitos.va.md' -> locale 'va', nombre base 'requisitos.md'
+      'requisitos.en.md' -> locale 'en', nombre base 'requisitos.md'
+      'requisitos.md'    -> locale por defecto, nombre base 'requisitos.md'
+
+    Devuelve (locale, nombre_base_con_md).
+    """
+    # p.ej. 'requisitos.va.md' -> partes ['requisitos', 'va', 'md']
+    partes = filename.split(".")
+    # Tiene sufijo de idioma si hay al menos 3 partes y la penúltima son 2 letras.
+    if len(partes) >= 3 and len(partes[-2]) == 2 and partes[-2].isalpha():
+        locale = partes[-2].lower()
+        base = ".".join(partes[:-2]) + ".md"   # quita el sufijo de idioma
+        return locale, base
+    return default_locale, filename
+
+
 def compute_path(rel_path, base_path):
     """Calcula el path de wiki a partir de la ruta relativa del fichero.
 
@@ -32,6 +52,10 @@ def compute_path(rel_path, base_path):
 
     Ejemplo: rel_path='instalacion/requisitos.md', base_path='pruebas'
              -> 'pruebas/instalacion/requisitos'
+
+    NOTA: este path NO incluye el idioma. El sufijo de idioma (p.ej. '.va') debe
+    haberse quitado ANTES de llamar aquí, para que 'requisitos.md' y
+    'requisitos.va.md' compartan el mismo path (solo cambia el locale).
     """
     p = Path(rel_path)
     partes = list(p.parts)
@@ -58,13 +82,18 @@ def extract_title(content, fallback):
     return fallback
 
 
-def scan(docs_dir, base_path):
+def scan(docs_dir, base_path, default_locale="es"):
     """Devuelve una lista de dicts, uno por cada .md encontrado.
 
     Separa el front matter y usa sus campos:
     - title: manda sobre el primer '#' del documento.
     - description: se toma del front matter (o cadena vacía).
     - tags: las del front matter (luego se les suma el tag de la herramienta).
+    - locale: se detecta del sufijo del nombre (ej. 'guia.va.md' -> 'va');
+      si no hay sufijo, se usa default_locale.
+
+    Varios idiomas: 'guia.md' y 'guia.va.md' comparten el mismo path y se publican
+    como la misma página en locales distintos (es y va).
 
     Además, detecta enlaces internos ROTOS (enlaces a .md que no existen en el
     repositorio) y los avisa por el log, sin detener la sincronización.
@@ -72,32 +101,42 @@ def scan(docs_dir, base_path):
     docs_dir = Path(docs_dir)
     ficheros = sorted(docs_dir.rglob("*.md"))
 
-    # Lista de todos los .md que existen (rutas relativas, con / como separador).
-    # Sirve para detectar enlaces que apuntan a ficheros inexistentes.
-    known_files = {
-        str(f.relative_to(docs_dir)).replace("\\", "/") for f in ficheros
-    }
+    # Lista de .md que existen, usando el nombre SIN el sufijo de idioma.
+    # Así un enlace a 'guia.md' se considera válido aunque solo exista 'guia.va.md'
+    # (y viceversa): las versiones de idioma cuentan como el mismo documento.
+    known_files = set()
+    for f in ficheros:
+        rel = str(f.relative_to(docs_dir)).replace("\\", "/")
+        carpeta = "/".join(rel.split("/")[:-1])
+        _loc, nombre_base = split_locale(rel.split("/")[-1], default_locale)
+        known_files.add(f"{carpeta}/{nombre_base}" if carpeta else nombre_base)
 
     broken = []  # se irá llenando con (fichero_origen, destino_roto)
     paginas = []
     for fichero in ficheros:
         rel = fichero.relative_to(docs_dir)
+        rel_str = str(rel).replace("\\", "/")
+        carpeta = "/".join(rel_str.split("/")[:-1])
+
+        # Detectar el idioma por el sufijo del nombre y obtener el nombre limpio.
+        locale, nombre_base = split_locale(rel_str.split("/")[-1], default_locale)
+        rel_sin_idioma = f"{carpeta}/{nombre_base}" if carpeta else nombre_base
+
         bruto = fichero.read_text(encoding="utf-8")
         meta, contenido = split_front_matter(bruto)
 
-        path = compute_path(rel, base_path)
-        # El title del front matter manda; si no, el primer '#'; si no, el nombre.
-        titulo = meta.get("title") or extract_title(contenido, fallback=fichero.stem)
+        # El path se calcula con el nombre SIN el sufijo de idioma, para que las
+        # versiones es/va compartan path (solo cambia el locale).
+        path = compute_path(rel_sin_idioma, base_path)
+        titulo = meta.get("title") or extract_title(contenido, fallback=Path(nombre_base).stem)
         descripcion = meta.get("description", "") or ""
         tags = meta.get("tags") or []
         if not isinstance(tags, list):
             tags = [tags]
 
-        # Orden importante: primero reescribir enlaces sobre el contenido real,
-        # y DESPUÉS anteponer el aviso. De paso se recogen los enlaces rotos.
-        source_rel = str(rel).replace("\\", "/")
+        # Orden importante: primero reescribir enlaces, después anteponer el aviso.
         contenido = rewrite_links(
-            contenido, source_rel, compute_path, base_path,
+            contenido, rel_sin_idioma, compute_path, base_path,
             known_files=known_files, broken=broken,
         )
         contenido = add_notice(contenido)
@@ -108,7 +147,8 @@ def scan(docs_dir, base_path):
             "description": descripcion,
             "tags": [str(t) for t in tags],
             "content": contenido,
-            "source": str(rel).replace("\\", "/"),
+            "locale": locale,
+            "source": rel_str,
         })
 
     # Avisar de los enlaces rotos encontrados (si los hay).
