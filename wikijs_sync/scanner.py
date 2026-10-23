@@ -65,10 +65,22 @@ def scan(docs_dir, base_path):
     - title: manda sobre el primer '#' del documento.
     - description: se toma del front matter (o cadena vacía).
     - tags: las del front matter (luego se les suma el tag de la herramienta).
+
+    Además, detecta enlaces internos ROTOS (enlaces a .md que no existen en el
+    repositorio) y los avisa por el log, sin detener la sincronización.
     """
     docs_dir = Path(docs_dir)
+    ficheros = sorted(docs_dir.rglob("*.md"))
+
+    # Lista de todos los .md que existen (rutas relativas, con / como separador).
+    # Sirve para detectar enlaces que apuntan a ficheros inexistentes.
+    known_files = {
+        str(f.relative_to(docs_dir)).replace("\\", "/") for f in ficheros
+    }
+
+    broken = []  # se irá llenando con (fichero_origen, destino_roto)
     paginas = []
-    for fichero in sorted(docs_dir.rglob("*.md")):
+    for fichero in ficheros:
         rel = fichero.relative_to(docs_dir)
         bruto = fichero.read_text(encoding="utf-8")
         meta, contenido = split_front_matter(bruto)
@@ -82,9 +94,12 @@ def scan(docs_dir, base_path):
             tags = [tags]
 
         # Orden importante: primero reescribir enlaces sobre el contenido real,
-        # y DESPUÉS anteponer el aviso.
+        # y DESPUÉS anteponer el aviso. De paso se recogen los enlaces rotos.
         source_rel = str(rel).replace("\\", "/")
-        contenido = rewrite_links(contenido, source_rel, compute_path, base_path)
+        contenido = rewrite_links(
+            contenido, source_rel, compute_path, base_path,
+            known_files=known_files, broken=broken,
+        )
         contenido = add_notice(contenido)
 
         paginas.append({
@@ -95,4 +110,11 @@ def scan(docs_dir, base_path):
             "content": contenido,
             "source": str(rel).replace("\\", "/"),
         })
+
+    # Avisar de los enlaces rotos encontrados (si los hay).
+    if broken:
+        print(f"\n  AVISO: {len(broken)} enlace(s) interno(s) roto(s):")
+        for origen, destino in broken:
+            print(f"    - en '{origen}' -> '{destino}' (el fichero no existe)")
+
     return paginas

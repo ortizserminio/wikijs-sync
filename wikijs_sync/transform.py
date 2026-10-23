@@ -53,7 +53,7 @@ def split_front_matter(text):
 _LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 
 
-def rewrite_links(content, source_rel, compute_path, base_path):
+def rewrite_links(content, source_rel, compute_path, base_path, known_files=None, broken=None):
     """Reescribe los enlaces relativos a .md como rutas de la wiki.
 
     - content:      el texto markdown de la página.
@@ -61,6 +61,10 @@ def rewrite_links(content, source_rel, compute_path, base_path):
                     'instalacion/requisitos.md'), para resolver los enlaces.
     - compute_path: la función del escáner que calcula el path de wiki.
     - base_path:    el prefijo de la rama de conocimiento.
+    - known_files:  conjunto (set) con las rutas relativas de TODOS los .md del repo.
+                    Si se pasa, se detectan enlaces rotos (destinos que no existen).
+    - broken:       lista donde se añaden los enlaces rotos encontrados, como tuplas
+                    (fichero_origen, destino). Si se pasa, se rellena por efecto lateral.
 
     Solo toca enlaces relativos que apuntan a ficheros .md. Deja intactos los
     enlaces externos (http...), anclas (#...) y los que no son .md.
@@ -83,6 +87,13 @@ def rewrite_links(content, source_rel, compute_path, base_path):
 
         # Resolver el destino respecto a la carpeta del fichero actual
         objetivo = posixpath.normpath(posixpath.join(carpeta, destino))
+
+        # Detección de enlaces rotos: si tenemos la lista de ficheros del repo y
+        # el destino no está en ella, es un enlace a un fichero que no existe.
+        if known_files is not None and objetivo not in known_files:
+            if broken is not None:
+                broken.append((source_rel.replace("\\", "/"), destino))
+
         wiki_path = compute_path(objetivo, base_path)
         return f"[{texto}](/{wiki_path}{ancla})"
 
