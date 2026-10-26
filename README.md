@@ -7,6 +7,10 @@ La idea: el **repositorio es la fuente de verdad** y la wiki es la forma cómoda
 de leer su contenido. Cada vez que se hace push de los `.md`, un pipeline ejecuta
 esta herramienta y la wiki queda actualizada automáticamente.
 
+> ¿Eres un equipo que quiere conectar su repositorio con la wiki? Sigue la
+> **[Guía de uso](GUIA-DE_USO.md)**: te lleva paso a paso sin necesidad de conocer
+> la herramienta por dentro.
+
 ## Qué hace
 
 Lee los `.md` de una carpeta (`docs/`), calcula la página que corresponde a cada
@@ -83,16 +87,21 @@ docker run --rm -e WIKI_URL -e WIKI_TOKEN -v ${PWD}:/app wikijs-sync --config wi
 
 ## Integración continua (CI)
 
-La carpeta `templates/` contiene una plantilla de pipeline reutilizable. Cada
-repositorio de conocimiento la incorpora con `include` y añade su `wikijs-sync.yml`.
-Al hacer push a la rama por defecto, el pipeline ejecuta la herramienta y
-sincroniza esa rama de la wiki.
+Cada repositorio de conocimiento define un pipeline que, al hacer push a la rama
+por defecto, ejecuta la herramienta y sincroniza su zona de la wiki.
 
-Hay dos variantes:
-- **Imagen preconstruida** (recomendada si hay Container Registry): el job usa una
-  imagen que ya lleva la herramienta. Rápido, no instala nada en cada ejecución.
-- **Instalación al vuelo**: el job instala la herramienta con `pip` en cada
-  ejecución. No necesita registry, pero es más lento.
+Hay **dos variantes** según cómo se provee la herramienta al job:
+- **Imagen preconstruida (A)** (recomendada si hay Container Registry): el job usa
+  una imagen que ya lleva la herramienta. Rápido, no instala nada en cada ejecución.
+- **Instalación al vuelo (B)**: el job usa una imagen oficial de Python e instala la
+  herramienta con `pip` en cada ejecución. No necesita registry, pero es más lento.
+
+Y funciona con distintos sistemas de CI (el concepto es el mismo, cambia el fichero):
+- **GitLab CI**: plantilla reutilizable en `templates/wikijs-sync.gitlab-ci.yml`, que
+  los repos incorporan con `include` (ver la Guía de uso).
+- **Jenkins** (lo usa la UMH): el pipeline se define en un `Jenkinsfile` (Groovy). Hay
+  ejemplos de las dos variantes (A y B) como referencia.
+- **GitHub Actions**: usado para los ensayos (workflows en `.github/workflows/`).
 
 ## Estructura del proyecto
 ```
@@ -106,7 +115,10 @@ wikijs-sync/
     wikijs.py        # cliente: listar, crear, actualizar, borrar, subir assets
     sync.py          # reconciliación: decide qué crear, actualizar o borrar
   tests/             # pruebas unitarias (pytest)
-  templates/         # plantilla de CI compartida
-  Dockerfile
-  pyproject.toml
+  templates/         # plantilla de CI compartida (GitLab)
+  .github/workflows/ # workflows de GitHub Actions (CI y build de la imagen)
+  Dockerfile         # receta de la imagen propia (variante A)
+  pyproject.toml     # empaquetado (hace la herramienta instalable con pip)
+  GUIA-DE_USO.md     # guía paso a paso para equipos
+  README.md
 ```
