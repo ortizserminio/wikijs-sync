@@ -1,4 +1,4 @@
-# Guía para equipos: conecta tu repositorio con la wiki
+# Guía de uso: conecta tu repositorio con la wiki
 
 Esta guía explica, paso a paso, cómo conectar el repositorio de tu equipo con
 Wiki.js para que tu documentación se publique sola. No necesitas saber cómo
