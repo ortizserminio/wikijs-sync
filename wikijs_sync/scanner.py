@@ -74,6 +74,16 @@ def compute_path(rel_path, base_path):
     base = [slugify(x) for x in Path(base_path).parts if x] if base_path else []
     return "/".join(base + tramos)
 
+def asset_name(base_path, ruta_disco):
+    """Nombre único y determinista de una imagen en la wiki.
+
+    'pruebas/redes' + 'img/Diagrama Red.png' -> 'pruebas-redes--diagrama-red-1a2b3c4d.png'
+    """
+    import hashlib
+    p = Path(ruta_disco)
+    resumen = hashlib.sha1(p.read_bytes()).hexdigest()[:8]
+    return f"{slugify(base_path)}--{slugify(p.stem)}-{resumen}{p.suffix.lower()}"
+
 
 def extract_title(content, fallback):
     """Título = primer encabezado '# ...' del documento; si no, el fallback."""
@@ -84,7 +94,8 @@ def extract_title(content, fallback):
     return fallback
 
 
-def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=None):
+
+def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=None, source_url=None):
 
     """Devuelve una lista de dicts, uno por cada .md encontrado.
 
@@ -113,6 +124,17 @@ def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=
         carpeta = "/".join(rel.split("/")[:-1])
         _loc, nombre_base = split_locale(rel.split("/")[-1], default_locale)
         known_files.add(f"{carpeta}/{nombre_base}" if carpeta else nombre_base)
+    
+    # Assets que ya están en la wiki (para no volver a subirlos).
+    existentes = client.list_asset_names() if client is not None else set()
+
+    def subir(ruta_disco, _nombre):
+        """Calcula el nombre en la wiki y sube la imagen solo si hace falta."""
+        nombre_wiki = asset_name(base_path, ruta_disco)
+        if client is not None and nombre_wiki not in existentes:
+            client.upload_asset(ruta_disco, nombre_wiki)
+            existentes.add(nombre_wiki)
+        return nombre_wiki
 
     broken = []  # se irá llenando con (fichero_origen, destino_roto)
     uploaded = {}  # imágenes ya subidas {ruta: nombre_en_wiki}, para no repetir
@@ -139,23 +161,29 @@ def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=
         if not isinstance(tags, list):
             tags = [tags]
 
-        # Si hay cliente, subir las imágenes locales y reescribir sus rutas.
-        # (Sin cliente -por ejemplo en los tests- no se tocan las imágenes.)
-        if client is not None:
-            antes = len(uploaded)
-            contenido = rewrite_images(
-                contenido, rel_str, docs_dir,
-                upload=lambda ruta, nombre: (client.upload_asset(ruta, nombre), nombre)[1],
-                uploaded=uploaded,
-            )
-            n_imagenes += len(uploaded) - antes
+        
+        # Subir las imágenes locales y reescribir sus rutas.
+        # Se hace siempre (incluso sin cliente) para que dry-run calcule el mismo contenido.
+        antes = len(uploaded)
+        contenido = rewrite_images(
+            contenido, rel_str, docs_dir,
+            upload=subir,
+            uploaded=uploaded,
+        )
+        n_imagenes += len(uploaded) - antes
+
 
         # Orden importante: primero reescribir enlaces, después anteponer el aviso.
         contenido = rewrite_links(
             contenido, rel_sin_idioma, compute_path, base_path,
             known_files=known_files, broken=broken,
         )
-        contenido = add_notice(contenido)
+        
+        enlace = None
+        if source_url:
+            enlace = f"{source_url.rstrip('/')}/{rel_str}"
+        contenido = add_notice(contenido, enlace)
+
 
         paginas.append({
             "path": path,
