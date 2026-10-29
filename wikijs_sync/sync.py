@@ -1,6 +1,10 @@
 """Reconciliación: compara los .md con la wiki y crea/actualiza/borra páginas."""
 from wikijs_sync.scanner import scan
 
+def _bajo_base_path(path, base_path):
+    """True si path ES base_path o cuelga de él (con barra)."""
+    return path == base_path or path.startswith(base_path + "/")
+
 
 def _wiki_pages_by_path(client, cfg):
     """Devuelve {path: pagina} de las páginas gestionadas por la herramienta.
@@ -10,7 +14,7 @@ def _wiki_pages_by_path(client, cfg):
     """
     gestionadas = {}
     for p in client.list_pages():
-        if not p["path"].startswith(cfg.base_path):
+        if not _bajo_base_path(p["path"], cfg.base_path):
             continue
         tags = p.get("tags") or []
         if cfg.tag not in tags:
