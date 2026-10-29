@@ -19,3 +19,9 @@ __pycache__/
 # Editor
 .vscode/
 .idea/
+
+
+# Artefactos de build
+build/
+dist/
+*.egg-info/
