@@ -36,10 +36,14 @@ def main(argv=None):
     print(f"Sincronizando '{cfg.docs_dir}' -> wiki '{cfg.base_path}'\n")
 
     try:
-        sync(client, cfg, dry_run=args.dry_run, prune=args.prune)
+        resumen = sync(client, cfg, dry_run=args.dry_run, prune=args.prune)
     except Exception as e:
-        # Terminar con error para que el pipeline de CI se ponga en rojo.
+        # Fallo general: wiki caída, token incorrecto al listar...
         print(f"Error durante la sincronización: {e}", file=sys.stderr)
+        return 1
+
+    if resumen["errores"]:
+        print(f"{len(resumen['errores'])} página(s) con error.", file=sys.stderr)
         return 1
 
     return 0

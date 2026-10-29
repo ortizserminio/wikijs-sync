@@ -12,6 +12,8 @@ class Config:
     docs_dir: str
     locale: str
     tag: str
+    locales: list
+    source_url: str 
     wiki_url: str
     wiki_token: str
 
@@ -32,11 +34,18 @@ def load_config(config_path="wikijs-sync.yml"):
             "Faltan las variables de entorno WIKI_URL y/o WIKI_TOKEN."
         )
 
+    locale = datos.get("locale", "es")
+    # Idiomas admitidos como sufijo. Siempre incluye el principal.
+    locales = {str(l).lower() for l in datos.get("locales", [])} | {locale}
+
     return Config(
         base_path=datos["base_path"].strip("/"),
         docs_dir=datos["docs_dir"],
-        locale=datos.get("locale", "es"),
+        locale=locale,
         tag=datos.get("tag", "gitlab-sync"),
+        locales=sorted(locales),
+        source_url=datos.get("source_url", ""),
         wiki_url=wiki_url,
         wiki_token=wiki_token,
     )
+     

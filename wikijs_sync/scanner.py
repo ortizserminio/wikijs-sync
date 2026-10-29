@@ -22,24 +22,26 @@ def slugify(text):
     return text.strip("-")
 
 
-def split_locale(filename, default_locale):
+def split_locale(filename, default_locale, allowed_locales=None):
     """Separa el locale (idioma) del nombre de un fichero según su sufijo.
 
-    Convención: un sufijo de 2 letras antes de .md indica el idioma.
-      'requisitos.va.md' -> locale 'va', nombre base 'requisitos.md'
-      'requisitos.en.md' -> locale 'en', nombre base 'requisitos.md'
-      'requisitos.md'    -> locale por defecto, nombre base 'requisitos.md'
+    Convención: un sufijo de 2 letras antes de .md indica el idioma,
+    PERO solo si está en la lista de idiomas permitidos.
+      'requisitos.va.md' -> locale 'va', nombre base 'requisitos.md' (si 'va' está permitido)
+      'setup.js.md'      -> locale por defecto, nombre base 'setup.js.md' ('js' no es idioma)
 
     Devuelve (locale, nombre_base_con_md).
     """
-    # p.ej. 'requisitos.va.md' -> partes ['requisitos', 'va', 'md']
     partes = filename.split(".")
-    # Tiene sufijo de idioma si hay al menos 3 partes y la penúltima son 2 letras.
-    if len(partes) >= 3 and len(partes[-2]) == 2 and partes[-2].isalpha():
+    if allowed_locales is None:
+        allowed_locales = {default_locale}
+    # Solo cuenta como idioma si es uno de los configurados.
+    if len(partes) >= 3 and partes[-2].lower() in allowed_locales:
         locale = partes[-2].lower()
-        base = ".".join(partes[:-2]) + ".md"   # quita el sufijo de idioma
+        base = ".".join(partes[:-2]) + ".md"
         return locale, base
     return default_locale, filename
+
 
 
 def compute_path(rel_path, base_path):
@@ -72,6 +74,16 @@ def compute_path(rel_path, base_path):
     base = [slugify(x) for x in Path(base_path).parts if x] if base_path else []
     return "/".join(base + tramos)
 
+def asset_name(base_path, ruta_disco):
+    """Nombre único y determinista de una imagen en la wiki.
+
+    'pruebas/redes' + 'img/Diagrama Red.png' -> 'pruebas-redes--diagrama-red-1a2b3c4d.png'
+    """
+    import hashlib
+    p = Path(ruta_disco)
+    resumen = hashlib.sha1(p.read_bytes()).hexdigest()[:8]
+    return f"{slugify(base_path)}--{slugify(p.stem)}-{resumen}{p.suffix.lower()}"
+
 
 def extract_title(content, fallback):
     """Título = primer encabezado '# ...' del documento; si no, el fallback."""
@@ -82,7 +94,9 @@ def extract_title(content, fallback):
     return fallback
 
 
-def scan(docs_dir, base_path, default_locale="es", client=None):
+
+def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=None, source_url=None):
+
     """Devuelve una lista de dicts, uno por cada .md encontrado.
 
     Separa el front matter y usa sus campos:
@@ -110,6 +124,17 @@ def scan(docs_dir, base_path, default_locale="es", client=None):
         carpeta = "/".join(rel.split("/")[:-1])
         _loc, nombre_base = split_locale(rel.split("/")[-1], default_locale)
         known_files.add(f"{carpeta}/{nombre_base}" if carpeta else nombre_base)
+    
+    # Assets que ya están en la wiki (para no volver a subirlos).
+    existentes = client.list_asset_names() if client is not None else set()
+
+    def subir(ruta_disco, _nombre):
+        """Calcula el nombre en la wiki y sube la imagen solo si hace falta."""
+        nombre_wiki = asset_name(base_path, ruta_disco)
+        if client is not None and nombre_wiki not in existentes:
+            client.upload_asset(ruta_disco, nombre_wiki)
+            existentes.add(nombre_wiki)
+        return nombre_wiki
 
     broken = []  # se irá llenando con (fichero_origen, destino_roto)
     uploaded = {}  # imágenes ya subidas {ruta: nombre_en_wiki}, para no repetir
@@ -136,23 +161,29 @@ def scan(docs_dir, base_path, default_locale="es", client=None):
         if not isinstance(tags, list):
             tags = [tags]
 
-        # Si hay cliente, subir las imágenes locales y reescribir sus rutas.
-        # (Sin cliente -por ejemplo en los tests- no se tocan las imágenes.)
-        if client is not None:
-            antes = len(uploaded)
-            contenido = rewrite_images(
-                contenido, rel_str, docs_dir,
-                upload=lambda ruta, nombre: (client.upload_asset(ruta, nombre), nombre)[1],
-                uploaded=uploaded,
-            )
-            n_imagenes += len(uploaded) - antes
+        
+        # Subir las imágenes locales y reescribir sus rutas.
+        # Se hace siempre (incluso sin cliente) para que dry-run calcule el mismo contenido.
+        antes = len(uploaded)
+        contenido = rewrite_images(
+            contenido, rel_str, docs_dir,
+            upload=subir,
+            uploaded=uploaded,
+        )
+        n_imagenes += len(uploaded) - antes
+
 
         # Orden importante: primero reescribir enlaces, después anteponer el aviso.
         contenido = rewrite_links(
             contenido, rel_sin_idioma, compute_path, base_path,
             known_files=known_files, broken=broken,
         )
-        contenido = add_notice(contenido)
+        
+        enlace = None
+        if source_url:
+            enlace = f"{source_url.rstrip('/')}/{rel_str}"
+        contenido = add_notice(contenido, enlace)
+
 
         paginas.append({
             "path": path,

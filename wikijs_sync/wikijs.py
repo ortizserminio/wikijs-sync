@@ -147,3 +147,13 @@ class WikiJsClient:
             )
         resp.raise_for_status()
         return resp.status_code == 200
+
+    def list_asset_names(self, folder_id=0):
+        """Nombres de los ficheros de una carpeta de assets (0 = raíz)."""
+        query = """
+        query ($folderId: Int!) {
+          assets { list(folderId: $folderId, kind: ALL) { filename } }
+        }"""
+        datos = self._run(query, {"folderId": folder_id})
+        return {a["filename"] for a in datos["assets"]["list"]}
+
