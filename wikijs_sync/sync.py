@@ -5,6 +5,25 @@ def _bajo_base_path(path, base_path):
     """True si path ES base_path o cuelga de él (con barra)."""
     return path == base_path or path.startswith(base_path + "/")
 
+def _normalizar(texto):
+    """Quita diferencias que Wiki.js introduce al guardar."""
+    texto = (texto or "").replace("\r\n", "\n")
+    return "\n".join(linea.rstrip() for linea in texto.strip().split("\n"))
+
+def _tags_de(pagina):
+    """Tags como conjunto, vengan como [str] o como [{tag}]."""
+    tags = pagina.get("tags") or []
+    return {t["tag"] if isinstance(t, dict) else t for t in tags}
+
+def _ha_cambiado(actual, deseada, tags_deseadas):
+    """True si hay alguna diferencia entre la página en la wiki y la deseada."""
+    return (
+        _normalizar(actual.get("content")) != _normalizar(deseada["content"])
+        or (actual.get("title") or "") != deseada["title"]
+        or (actual.get("description") or "") != (deseada.get("description") or "")
+        or _tags_de(actual) != set(tags_deseadas)
+    )
+
 
 def _wiki_pages_by_path(client, cfg):
     """Devuelve {path: pagina} de las páginas gestionadas por la herramienta.
@@ -64,7 +83,7 @@ def sync(client, cfg, dry_run=False, prune=False):
             print(f"  {marca}+ crear      {etiqueta}")
         else:
             actual = client.get_page(en_wiki[clave]["id"])
-            if actual["content"] == contenido and actual["title"] == titulo:
+            if not _ha_cambiado(actual, pagina, tags):
                 sin_cambios += 1
                 print(f"  = sin cambio {etiqueta}")
             else:
