@@ -22,24 +22,26 @@ def slugify(text):
     return text.strip("-")
 
 
-def split_locale(filename, default_locale):
+def split_locale(filename, default_locale, allowed_locales=None):
     """Separa el locale (idioma) del nombre de un fichero según su sufijo.
 
-    Convención: un sufijo de 2 letras antes de .md indica el idioma.
-      'requisitos.va.md' -> locale 'va', nombre base 'requisitos.md'
-      'requisitos.en.md' -> locale 'en', nombre base 'requisitos.md'
-      'requisitos.md'    -> locale por defecto, nombre base 'requisitos.md'
+    Convención: un sufijo de 2 letras antes de .md indica el idioma,
+    PERO solo si está en la lista de idiomas permitidos.
+      'requisitos.va.md' -> locale 'va', nombre base 'requisitos.md' (si 'va' está permitido)
+      'setup.js.md'      -> locale por defecto, nombre base 'setup.js.md' ('js' no es idioma)
 
     Devuelve (locale, nombre_base_con_md).
     """
-    # p.ej. 'requisitos.va.md' -> partes ['requisitos', 'va', 'md']
     partes = filename.split(".")
-    # Tiene sufijo de idioma si hay al menos 3 partes y la penúltima son 2 letras.
-    if len(partes) >= 3 and len(partes[-2]) == 2 and partes[-2].isalpha():
+    if allowed_locales is None:
+        allowed_locales = {default_locale}
+    # Solo cuenta como idioma si es uno de los configurados.
+    if len(partes) >= 3 and partes[-2].lower() in allowed_locales:
         locale = partes[-2].lower()
-        base = ".".join(partes[:-2]) + ".md"   # quita el sufijo de idioma
+        base = ".".join(partes[:-2]) + ".md"
         return locale, base
     return default_locale, filename
+
 
 
 def compute_path(rel_path, base_path):
@@ -82,7 +84,8 @@ def extract_title(content, fallback):
     return fallback
 
 
-def scan(docs_dir, base_path, default_locale="es", client=None):
+def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=None):
+
     """Devuelve una lista de dicts, uno por cada .md encontrado.
 
     Separa el front matter y usa sus campos:
