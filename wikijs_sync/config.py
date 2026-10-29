@@ -13,6 +13,7 @@ class Config:
     locale: str
     tag: str
     locales: list
+    source_url: str 
     wiki_url: str
     wiki_token: str
 
@@ -43,6 +44,7 @@ def load_config(config_path="wikijs-sync.yml"):
         locale=locale,
         tag=datos.get("tag", "gitlab-sync"),
         locales=sorted(locales),
+        source_url=datos.get("source_url", ""),
         wiki_url=wiki_url,
         wiki_token=wiki_token,
     )

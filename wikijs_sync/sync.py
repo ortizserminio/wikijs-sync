@@ -63,6 +63,7 @@ def sync(client, cfg, dry_run=False, prune=False):
 
     creadas = actualizadas = sin_cambios = borradas = 0
     marca = "[dry-run] " if dry_run else ""
+    errores = []
 
     # --- Crear y actualizar ---
     for pagina in deseadas:
@@ -76,45 +77,57 @@ def sync(client, cfg, dry_run=False, prune=False):
         clave = (path, locale)
         etiqueta = f"{path} [{locale}]"      # para el log, mostrando el idioma
 
-        if clave not in en_wiki:
-            if not dry_run:
-                client.create_page(
-                    path=path, title=titulo, content=contenido,
-                    description=descripcion, tags=tags, locale=locale,
-                )
-            creadas += 1
-            print(f"  {marca}+ crear      {etiqueta}")
-        else:
-            actual = client.get_page(en_wiki[clave]["id"])
-            if not _ha_cambiado(actual, pagina, tags):
-                sin_cambios += 1
-                print(f"  = sin cambio {etiqueta}")
-            else:
+        try:
+            if clave not in en_wiki:
                 if not dry_run:
-                    client.update_page(
-                        page_id=en_wiki[clave]["id"],
+                    client.create_page(
                         path=path, title=titulo, content=contenido,
                         description=descripcion, tags=tags, locale=locale,
                     )
-                actualizadas += 1
-                print(f"  {marca}~ actualizar {etiqueta}")
+                creadas += 1
+                print(f"  {marca}+ crear      {etiqueta}")
+            else:
+                actual = client.get_page(en_wiki[clave]["id"])
+                if not _ha_cambiado(actual, pagina, tags):
+                    sin_cambios += 1
+                    print(f"  = sin cambio {etiqueta}")
+                else:
+                    if not dry_run:
+                        client.update_page(
+                            page_id=en_wiki[clave]["id"],
+                            path=path, title=titulo, content=contenido,
+                            description=descripcion, tags=tags, locale=locale,
+                        )
+                    actualizadas += 1
+                    print(f"  {marca}~ actualizar {etiqueta}")
+        except Exception as e:
+            errores.append((etiqueta, str(e)))
+            print(f"  ! ERROR      {etiqueta}: {e}")
+
 
     # --- Borrar (solo con --prune) ---
     if prune:
         for clave, pagina in en_wiki.items():
             if clave not in claves_deseadas:
-                if not dry_run:
-                    client.delete_page(pagina["id"])
-                borradas += 1
                 path, locale = clave
-                print(f"  {marca}- borrar     {path} [{locale}]")
+                etiqueta = f"{path} [{locale}]"
+                try:
+                    if not dry_run:
+                        client.delete_page(pagina["id"])
+                    borradas += 1
+                    print(f"  {marca}- borrar     {etiqueta}")
+                except Exception as e:
+                    errores.append((etiqueta, str(e)))
+                    print(f"  ! ERROR      {etiqueta}: {e}")
+
 
     print(
         f"\nResumen: {creadas} creadas, {actualizadas} actualizadas, "
-        f"{borradas} borradas, {sin_cambios} sin cambios."
+        f"{borradas} borradas, {sin_cambios} sin cambios, {len(errores)} errores."
         + ("  (dry-run: no se ha tocado la wiki)" if dry_run else "")
     )
     return {
         "creadas": creadas, "actualizadas": actualizadas,
         "borradas": borradas, "sin_cambios": sin_cambios,
+        "errores": errores,
     }
