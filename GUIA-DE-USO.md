@@ -1,6 +1,8 @@
 # Guía de uso: conecta tu repositorio con la wiki
 
-![Diagrama de cómo funciona wikijs-sync](images/wikijs-sync-diagrama.png)
+<div style="background: white; padding: 10px;">
+  <img src="images/wikijs-sync-diagrama.png" alt="Diagrama de cómo funciona wikijs-sync">
+</div>
 
 
 Esta guía explica, paso a paso, cómo conectar el repositorio de tu equipo con
