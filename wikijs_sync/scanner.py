@@ -122,7 +122,7 @@ def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=
     for f in ficheros:
         rel = str(f.relative_to(docs_dir)).replace("\\", "/")
         carpeta = "/".join(rel.split("/")[:-1])
-        _loc, nombre_base = split_locale(rel.split("/")[-1], default_locale)
+        _loc, nombre_base = split_locale(rel.split("/")[-1], default_locale, allowed_locales)
         known_files.add(f"{carpeta}/{nombre_base}" if carpeta else nombre_base)
     
     # Assets que ya están en la wiki (para no volver a subirlos).
@@ -146,7 +146,7 @@ def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=
         carpeta = "/".join(rel_str.split("/")[:-1])
 
         # Detectar el idioma por el sufijo del nombre y obtener el nombre limpio.
-        locale, nombre_base = split_locale(rel_str.split("/")[-1], default_locale)
+        locale, nombre_base = split_locale(rel_str.split("/")[-1], default_locale, allowed_locales)
         rel_sin_idioma = f"{carpeta}/{nombre_base}" if carpeta else nombre_base
 
         bruto = fichero.read_text(encoding="utf-8")
