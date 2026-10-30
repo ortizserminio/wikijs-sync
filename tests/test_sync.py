@@ -1,6 +1,7 @@
 """Pruebas de la reconciliación con un cliente falso (sin wiki real)."""
 from wikijs_sync.config import Config
 from wikijs_sync.sync import sync
+from wikijs_sync.scanner import scan
 
 class ClienteFalso:
     """Imita a WikiJsClient guardando en memoria lo que se le pide."""
@@ -82,3 +83,24 @@ def test_un_error_no_detiene_el_resto(tmp_path):
     resumen = sync(cliente, _cfg(tmp_path))
     assert cliente.creadas == ["pruebas/redes/b"]
     assert len(resumen["errores"]) == 1
+
+def test_cambio_solo_de_description_se_actualiza(tmp_path):
+    (tmp_path / "a.md").write_text("---\ndescription: nueva\n---\n# A\n", encoding="utf-8")
+    deseada = scan(str(tmp_path), "pruebas/redes")[0]
+    en_wiki = {
+        "id": 1, "path": "pruebas/redes/a", "locale": "es", "title": "A",
+        "description": "vieja", "content": deseada["content"], "tags": ["gitlab-sync"],
+    }
+    resumen = sync(ClienteFalso([en_wiki]), _cfg(tmp_path))
+    assert resumen["actualizadas"] == 1
+
+def test_idempotente_aunque_wiki_cambie_saltos_de_linea(tmp_path):
+    (tmp_path / "a.md").write_text("# A\n\ntexto\n", encoding="utf-8")
+    deseada = scan(str(tmp_path), "pruebas/redes")[0]
+    en_wiki = {
+        "id": 1, "path": "pruebas/redes/a", "locale": "es", "title": "A",
+        "description": "", "content": deseada["content"] + "\n\n", "tags": ["gitlab-sync"],
+    }
+    cliente = ClienteFalso([en_wiki])
+    resumen = sync(cliente, _cfg(tmp_path))
+    assert resumen["sin_cambios"] == 1 and cliente.actualizadas == []
