@@ -100,14 +100,21 @@ def rewrite_links(content, source_rel, compute_path, base_path, known_files=None
     return _LINK_RE.sub(_sub, content)
 
 
-def add_notice(content, notice=None):
-    """Antepone al contenido un aviso de página autogenerada."""
-    if notice is None:
-        notice = (
-            "> Esta página se genera automáticamente desde el repositorio. "
-            "No la edites aquí: los cambios se perderán en la próxima sincronización."
-        )
+def add_notice(content, source_link=None):
+    """Antepone el aviso de página autogenerada, con enlace al fichero origen.
+
+    Debe ser DETERMINISTA (sin fechas ni SHA): si cambiara en cada ejecución,
+    todas las páginas se actualizarían siempre.
+    """
+    notice = (
+        "> Esta página se genera automáticamente desde el repositorio. "
+        "No la edites aquí: los cambios se perderán en la próxima sincronización."
+    )
+    if source_link:
+        nombre = source_link.rsplit("/", 1)[-1]
+        notice += f"\n>\n> Fichero origen: [{nombre}]({source_link})"
     return f"{notice}\n\n{content}"
+
 
 
 # Imágenes markdown: ![texto](destino). El '!' al principio las distingue de los enlaces.

@@ -134,3 +134,10 @@ def test_imagen_local_se_sube_y_reescribe(tmp_path):
                          upload=lambda ruta, nombre: subidas.append(nombre) or nombre)
     assert "![logo](/logo.png)" in out
     assert subidas == ["logo.png"]
+
+def test_aviso_con_enlace_al_origen():
+    url = "https://gitlab.umh.es/sistemas/redes/-/blob/master/docs/guia.md"
+    resultado = add_notice("# Hola", url)
+    assert resultado.startswith("> Esta página se genera automáticamente")
+    assert f"[guia.md]({url})" in resultado
+    assert resultado.endswith("# Hola")
