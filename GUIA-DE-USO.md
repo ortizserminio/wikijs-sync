@@ -1,8 +1,10 @@
 # Guía de uso: conecta tu repositorio con la wiki
 
+![Diagrama de cómo funciona wikijs-sync](images/wikijs-sync-diagrama.png)
+
+
 Esta guía explica, paso a paso, cómo conectar el repositorio de tu equipo con
-Wiki.js para que tu documentación se publique sola. No necesitas saber cómo
-funciona la herramienta por dentro: solo seguir estos pasos.
+Wiki.js para que tu documentación se publique sola.
 
 Cuando termines, cada vez que hagas push de tus `.md`, tu documentación aparecerá
 (o se actualizará) automáticamente en la wiki, en la zona de tu equipo.
