@@ -58,3 +58,12 @@ def test_scan_varios_idiomas_comparten_path(tmp_path):
     assert {(p["path"], p["locale"]) for p in paginas} == {
         ("pruebas/guia", "es"), ("pruebas/guia", "va"),
     }
+
+
+def test_scan_aviso_con_enlace_al_origen(tmp_path):
+    from wikijs_sync.scanner import scan
+    (tmp_path / "guia.md").write_text("# Guía\n", encoding="utf-8")
+    pagina = scan(str(tmp_path), "pruebas",
+                  source_url="https://gitlab.umh.es/g/r/-/blob/master")[0]
+    assert pagina["content"].startswith("> Esta página se genera automáticamente")
+    assert "/guia.md)" in pagina["content"]

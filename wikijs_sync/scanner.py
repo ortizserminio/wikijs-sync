@@ -1,6 +1,7 @@
 """Escáner: recorre docs/ y convierte cada .md en datos de página."""
 import re
 import unicodedata
+import posixpath
 from pathlib import Path
 
 from wikijs_sync.transform import split_front_matter, rewrite_links, add_notice, rewrite_images
@@ -181,8 +182,10 @@ def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=
         
         enlace = None
         if source_url:
-            enlace = f"{source_url.rstrip('/')}/{rel_str}"
+            ruta_repo = posixpath.join(str(docs_dir).replace("\\", "/"), rel_str)
+            enlace = f"{source_url.rstrip('/')}/{ruta_repo}"
         contenido = add_notice(contenido, enlace)
+
 
 
         paginas.append({
