@@ -1,0 +1,101 @@
+// =============================================================================
+// Jenkinsfile — Plantilla para sincronizar documentación con Wiki.js (UMH)
+// =============================================================================
+//
+// CÓMO USAR ESTA PLANTILLA:
+// 1. Copia este fichero a la raíz de tu repositorio de documentación.
+// 2. Asegúrate de que el repo tiene:
+//    - Una carpeta 'docs/' con los ficheros .md
+//    - Un fichero 'wikijs-sync.yml' con la configuración (base_path, etc.)
+// 3. En Jenkins, crea un job de tipo Pipeline → "Pipeline script from SCM"
+//    apuntando a este repo.
+// 4. Configura las credenciales 'wikijs-token' en Jenkins (el token de la API de Wiki.js).
+//
+// REQUISITOS EN JENKINS:
+// - Plugin "Docker Pipeline" instalado.
+// - Credencial 'wikijs-token' de tipo "Secret text" con el token de Wiki.js.
+// - El agente de Jenkins debe poder ejecutar Docker.
+//
+// =============================================================================
+
+pipeline {
+    agent {
+        docker {
+            // Imagen oficial de Python (no necesitamos imagen propia)
+            image 'python:3.12-slim'
+            // -u root: para poder instalar git con apt-get
+            // Si la wiki está en otro servidor, quitar --add-host
+            args '-u root'
+        }
+    }
+
+    environment {
+        // =====================================================================
+        // CONFIGURAR ESTOS VALORES PARA TU ENTORNO
+        // =====================================================================
+        
+        // URL de la wiki de la UMH (sin barra final)
+        WIKI_URL = 'http://URL-DE-LA-WIKI-UMH'
+        
+        // Token de la API de Wiki.js (guardado en Jenkins Credentials)
+        WIKI_TOKEN = credentials('wikijs-token')
+        
+        // URL del repositorio de la herramienta en GitLab
+        // (cambiar por la URL real cuando se suba al GitLab de la UMH)
+        HERRAMIENTA_URL = 'https://gitlab.umh.es/RUTA/wikijs-sync.git'
+    }
+
+    stages {
+        // Etapa 1: Instalar la herramienta
+        // La imagen python:3.12-slim no trae git, hay que instalarlo
+        stage('Instalar herramienta') {
+            steps {
+                sh '''
+                    apt-get update && apt-get install -y --no-install-recommends git
+                    pip install --quiet "git+${HERRAMIENTA_URL}"
+                '''
+            }
+        }
+
+        // Etapa 2: Sincronizar con la wiki
+        // Lee el fichero wikijs-sync.yml del repo para saber qué sincronizar
+        stage('Sincronizar con Wiki.js') {
+            steps {
+                sh 'python -m wikijs_sync --config wikijs-sync.yml'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Sincronización completada correctamente.'
+        }
+        failure {
+            echo 'Error en la sincronización. Revisa el log de la consola.'
+        }
+    }
+}
+
+// =============================================================================
+// NOTAS ADICIONALES
+// =============================================================================
+//
+// OPCIONES DE LA HERRAMIENTA:
+//   --dry-run   Simula la sincronización sin tocar la wiki (para probar)
+//   --prune     Borra de la wiki las páginas que ya no existen en el repo
+//   --verbose   Muestra más información durante la ejecución
+//
+// Ejemplo con opciones:
+//   sh 'python -m wikijs_sync --config wikijs-sync.yml --prune'
+//
+// TRIGGER AUTOMÁTICO (webhook):
+// En GitLab, configura un webhook que apunte a Jenkins para que se ejecute
+// automáticamente con cada push:
+//   GitLab → Settings → Webhooks → URL: http://jenkins-umh/job/NOMBRE-JOB/build
+//
+// VARIOS DEPARTAMENTOS:
+// Cada departamento tiene su propio repo con su wikijs-sync.yml.
+// Cada repo apunta a un base_path diferente en la wiki (ej: conocimiento/sistemas/redes).
+// Se crea un job de Jenkins por departamento, o un job con parámetros.
+//
+// =============================================================================
