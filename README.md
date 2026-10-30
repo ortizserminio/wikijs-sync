@@ -54,13 +54,33 @@ Cada repositorio de conocimiento lleva en su raíz un `wikijs-sync.yml`:
 base_path: conocimiento/sistemas/redes   # rama de conocimiento en la wiki
 docs_dir: docs                           # carpeta con los .md
 locale: es                               # idioma por defecto de las páginas
-locales: [es, ca]                        # idiomas admitidos como sufijo (guia.ca.md)
+locales: [es, va]                        # idiomas admitidos como sufijo (guia.va.md)
+locale_map:                              # opcional: mapea códigos que no existen en la wiki
+  va: ca                                 #   .va.md → se publica como catalán (ca)
 tag: gitlab-sync                         # etiqueta que marca las páginas gestionadas
 source_url: https://gitlab.umh.es/g/r/-/blob/master  # opcional: enlace al origen en el aviso
 ```
 
 **Nota sobre idiomas**: para publicar `guia.ca.md` como catalán, el idioma `ca` debe
 estar en `locales` Y activado en la wiki (Administration → Locale).
+
+### Mapeo de idiomas (locale_map)
+
+Wiki.js no tiene todos los códigos de idioma (por ejemplo, no tiene `va` para
+valenciano). Si quieres usar un código en los ficheros que no existe en la wiki,
+puedes mapearlo a otro que sí exista:
+
+```yaml
+locales: [es, va]
+locale_map:
+  va: ca   # los ficheros .va.md se publican con locale "ca" (catalán)
+```
+
+Así:
+- Los ficheros se llaman `documento.va.md` (claro para quien edita)
+- Pero se publican en la wiki como catalán (`ca`), que sí existe
+
+Esto es útil para la UMH, donde se usa valenciano pero Wiki.js solo tiene catalán.
 
 La URL de la wiki y el token NO van en el fichero: llegan por variables de entorno.
 
