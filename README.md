@@ -8,7 +8,7 @@ de leer su contenido. Cada vez que se hace push de los `.md`, un pipeline ejecut
 esta herramienta y la wiki queda actualizada automáticamente.
 
 > ¿Eres un equipo que quiere conectar su repositorio con la wiki? Sigue la
-> **[Guía de uso](GUIA-DE_USO.md)**: te lleva paso a paso sin necesidad de conocer
+> **[Guía de uso](GUIA-DE-USO.md)**: te lleva paso a paso sin necesidad de conocer
 > la herramienta por dentro.
 
 ## Qué hace
