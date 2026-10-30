@@ -67,3 +67,42 @@ def test_scan_aviso_con_enlace_al_origen(tmp_path):
                   source_url="https://gitlab.umh.es/g/r/-/blob/master")[0]
     assert pagina["content"].startswith("> Esta página se genera automáticamente")
     assert "/guia.md)" in pagina["content"]
+
+
+def test_imagen_mismo_contenido_en_dry_run_y_real(tmp_path):
+    from wikijs_sync.scanner import scan
+
+    class ClienteFalso:
+        def __init__(self):
+            self.subidas = []
+        def list_asset_names(self):
+            return set()
+        def upload_asset(self, ruta, nombre):
+            self.subidas.append(nombre)
+
+    (tmp_path / "logo.png").write_bytes(b"png")
+    (tmp_path / "a.md").write_text("# A\n![logo](logo.png)\n", encoding="utf-8")
+    cliente = ClienteFalso()
+    real = scan(str(tmp_path), "pruebas/redes", client=cliente)[0]["content"]
+    dry = scan(str(tmp_path), "pruebas/redes", client=None)[0]["content"]
+    assert real == dry
+    assert len(cliente.subidas) == 1
+    assert cliente.subidas[0].startswith("pruebas-redes--logo-")
+
+def test_imagen_ya_subida_no_se_vuelve_a_subir(tmp_path):
+    from wikijs_sync.scanner import scan, asset_name
+
+    (tmp_path / "logo.png").write_bytes(b"png")
+    (tmp_path / "a.md").write_text("![logo](logo.png)\n", encoding="utf-8")
+    ya_esta = asset_name("pruebas/redes", tmp_path / "logo.png")
+
+    class ClienteFalso:
+        subidas = []
+        def list_asset_names(self):
+            return {ya_esta}
+        def upload_asset(self, ruta, nombre):
+            self.subidas.append(nombre)
+
+    cliente = ClienteFalso()
+    scan(str(tmp_path), "pruebas/redes", client=cliente)
+    assert cliente.subidas == []
