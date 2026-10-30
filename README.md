@@ -54,8 +54,13 @@ Cada repositorio de conocimiento lleva en su raíz un `wikijs-sync.yml`:
 base_path: conocimiento/sistemas/redes   # rama de conocimiento en la wiki
 docs_dir: docs                           # carpeta con los .md
 locale: es                               # idioma por defecto de las páginas
+locales: [es, ca]                        # idiomas admitidos como sufijo (guia.ca.md)
 tag: gitlab-sync                         # etiqueta que marca las páginas gestionadas
+source_url: https://gitlab.umh.es/g/r/-/blob/master  # opcional: enlace al origen en el aviso
 ```
+
+**Nota sobre idiomas**: para publicar `guia.ca.md` como catalán, el idioma `ca` debe
+estar en `locales` Y activado en la wiki (Administration → Locale).
 
 La URL de la wiki y el token NO van en el fichero: llegan por variables de entorno.
 
@@ -100,7 +105,7 @@ Y funciona con distintos sistemas de CI (el concepto es el mismo, cambia el fich
 - **GitLab CI**: plantilla reutilizable en `templates/wikijs-sync.gitlab-ci.yml`, que
   los repos incorporan con `include` (ver la Guía de uso).
 - **Jenkins** (lo usa la UMH): el pipeline se define en un `Jenkinsfile` (Groovy). Hay
-  ejemplos de las dos variantes (A y B) como referencia.
+  una plantilla en `templates/Jenkinsfile` (variante B: instalación al vuelo).
 - **GitHub Actions**: usado para los ensayos (workflows en `.github/workflows/`).
 
 ## Estructura del proyecto
@@ -115,10 +120,10 @@ wikijs-sync/
     wikijs.py        # cliente: listar, crear, actualizar, borrar, subir assets
     sync.py          # reconciliación: decide qué crear, actualizar o borrar
   tests/             # pruebas unitarias (pytest)
-  templates/         # plantilla de CI compartida (GitLab)
+  templates/         # plantillas de CI (GitLab y Jenkins)
   .github/workflows/ # workflows de GitHub Actions (CI y build de la imagen)
   Dockerfile         # receta de la imagen propia (variante A)
   pyproject.toml     # empaquetado (hace la herramienta instalable con pip)
-  GUIA-DE_USO.md     # guía paso a paso para equipos
+  GUIA-DE-USO.md     # guía paso a paso para equipos
   README.md
 ```
