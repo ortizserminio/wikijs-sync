@@ -48,3 +48,13 @@ def test_path_ignora_sufijo_idioma():
 def test_locale_no_confunde_extension_de_dos_letras():
     # 'js' no está en IDIOMAS, así que no se trata como locale
     assert split_locale("setup.js.md", "es", IDIOMAS) == ("es", "setup.js.md")
+
+
+def test_scan_varios_idiomas_comparten_path(tmp_path):
+    from wikijs_sync.scanner import scan
+    (tmp_path / "guia.md").write_text("# Guía\n", encoding="utf-8")
+    (tmp_path / "guia.va.md").write_text("# Guia\n", encoding="utf-8")
+    paginas = scan(str(tmp_path), "pruebas", allowed_locales={"es", "va"})
+    assert {(p["path"], p["locale"]) for p in paginas} == {
+        ("pruebas/guia", "es"), ("pruebas/guia", "va"),
+    }
