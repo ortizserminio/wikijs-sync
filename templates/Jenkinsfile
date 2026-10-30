@@ -7,8 +7,7 @@
 // 2. Asegúrate de que el repo tiene:
 //    - Una carpeta 'docs/' con los ficheros .md
 //    - Un fichero 'wikijs-sync.yml' con la configuración (base_path, etc.)
-// 3. En Jenkins, crea un job de tipo Pipeline → "Pipeline script from SCM"
-//    apuntando a este repo.
+// 3. En Jenkins, crea un job de tipo "Multibranch Pipeline" apuntando a tu repo.
 // 4. Configura las credenciales 'wikijs-token' en Jenkins (el token de la API de Wiki.js).
 //
 // REQUISITOS EN JENKINS:
@@ -24,9 +23,13 @@ pipeline {
             // Imagen oficial de Python (no necesitamos imagen propia)
             image 'python:3.12-slim'
             // -u root: para poder instalar git con apt-get
-            // Si la wiki está en otro servidor, quitar --add-host
             args '-u root'
         }
+    }
+
+    // Evita que dos ejecuciones se pisen si hay varios push seguidos
+    options {
+        disableConcurrentBuilds()
     }
 
     environment {
@@ -57,11 +60,19 @@ pipeline {
             }
         }
 
-        // Etapa 2: Sincronizar con la wiki
-        // Lee el fichero wikijs-sync.yml del repo para saber qué sincronizar
-        stage('Sincronizar con Wiki.js') {
+        // Etapa 2: Dry-run en ramas (para ver qué haría sin tocar la wiki)
+        stage('Comprobar (ramas)') {
+            when { not { branch 'master' } }
             steps {
-                sh 'python -m wikijs_sync --config wikijs-sync.yml'
+                sh 'python -m wikijs_sync --config wikijs-sync.yml --dry-run --prune'
+            }
+        }
+
+        // Etapa 3: Sincronizar de verdad (solo en master)
+        stage('Sincronizar con Wiki.js') {
+            when { branch 'master' }
+            steps {
+                sh 'python -m wikijs_sync --config wikijs-sync.yml --prune'
             }
         }
     }
@@ -83,10 +94,6 @@ pipeline {
 // OPCIONES DE LA HERRAMIENTA:
 //   --dry-run   Simula la sincronización sin tocar la wiki (para probar)
 //   --prune     Borra de la wiki las páginas que ya no existen en el repo
-//   --verbose   Muestra más información durante la ejecución
-//
-// Ejemplo con opciones:
-//   sh 'python -m wikijs_sync --config wikijs-sync.yml --prune'
 //
 // TRIGGER AUTOMÁTICO (webhook):
 // En GitLab, configura un webhook que apunte a Jenkins para que se ejecute
@@ -97,5 +104,11 @@ pipeline {
 // Cada departamento tiene su propio repo con su wikijs-sync.yml.
 // Cada repo apunta a un base_path diferente en la wiki (ej: conocimiento/sistemas/redes).
 // Se crea un job de Jenkins por departamento, o un job con parámetros.
+//
+// REPO PRIVADO:
+// Si el repo de la herramienta es privado, la línea 'pip install git+...' fallará.
+// Soluciones:
+// - Hacer el repo de la herramienta accesible (público o con deploy token)
+// - Usar una imagen Docker que ya tenga la herramienta instalada (variante A)
 //
 // =============================================================================

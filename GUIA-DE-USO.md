@@ -75,11 +75,16 @@ de tu equipo:
 base_path: conocimiento/sistemas/redes   # LA RUTA DE TU EQUIPO (te la dan)
 docs_dir: docs                           # la carpeta con tus .md
 locale: es                               # idioma por defecto
+locales: [es, ca]                        # opcional: idiomas como sufijo (guia.ca.md)
 tag: gitlab-sync                         # no lo cambies (marca las páginas gestionadas)
+source_url: https://gitlab.umh.es/GRUPO/REPO/-/blob/master  # opcional: enlace al origen
 ```
 
 Solo tienes que ajustar `base_path` con la ruta que te hayan asignado. El resto
 suele dejarse igual.
+
+**Nota sobre idiomas**: si quieres publicar páginas en otro idioma (ej. `guia.ca.md`),
+el idioma debe estar en `locales` Y activado en la wiki (Administration → Locale).
 
 ---
 
@@ -180,7 +185,7 @@ Al hacer push a la rama principal:
 
 - Cada push a la rama principal **actualiza** tu zona de la wiki.
 - Si **editas** un `.md`, su página se actualiza.
-- Si **borras** un `.md`, su página se elimina de la wiki.
+- Si **borras** un `.md` y usas `--prune`, su página se elimina de la wiki.
 - **No edites las páginas directamente en la wiki**: se generan desde el repositorio
   y los cambios hechos a mano se perderían en la siguiente sincronización. Cada página
   lleva un aviso recordándolo.
@@ -204,14 +209,13 @@ Al hacer push a la rama principal:
 Puedes añadir opciones al comando de sincronización en el Jenkinsfile:
 
 ```groovy
-sh 'python -m wikijs_sync --config wikijs-sync.yml --prune --verbose'
+sh 'python -m wikijs_sync --config wikijs-sync.yml --prune'
 ```
 
 | Opción | Qué hace |
 |--------|----------|
 | `--dry-run` | Simula la sincronización sin tocar la wiki (para probar) |
 | `--prune` | Borra de la wiki las páginas que ya no existen en el repo |
-| `--verbose` | Muestra más información durante la ejecución |
 
 **Nota sobre `--prune`**: si no usas esta opción, las páginas borradas del repo
 seguirán en la wiki hasta que alguien las borre manualmente. Esto es más seguro
