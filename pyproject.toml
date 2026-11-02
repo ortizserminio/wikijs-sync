@@ -17,3 +17,19 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["wikijs_sync"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "PIE", "SIM", "RUF"]
+ignore = [
+    "BLE001",  # Permitimos except Exception en cli.py y sync.py (es intencional)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]  # Permitimos líneas largas en tests

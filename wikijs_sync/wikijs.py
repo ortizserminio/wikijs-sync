@@ -1,5 +1,6 @@
 import requests
 
+
 class WikiJsClient:
     """Cliente mínimo para la API GraphQL de Wiki.js."""
 

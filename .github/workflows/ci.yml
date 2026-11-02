@@ -6,6 +6,16 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check .
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -17,7 +27,7 @@ jobs:
       - run: python -m pytest -v
 
   build-and-push:
-    needs: test                       # solo si los tests pasan
+    needs: [lint, test]               # solo si lint y tests pasan
     if: github.event_name == 'push'   # en PRs solo se prueban, no se publica
     runs-on: ubuntu-latest
     permissions:

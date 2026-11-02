@@ -14,7 +14,7 @@ class Config:
     tag: str
     locales: list
     locale_map: dict  # mapeo de idiomas: {'va': 'ca'} -> los .va.md se publican como ca
-    source_url: str 
+    source_url: str
     wiki_url: str
     wiki_token: str
 
@@ -25,7 +25,7 @@ def load_config(config_path="wikijs-sync.yml"):
     La URL y el token NO van en el YAML: llegan por WIKI_URL y WIKI_TOKEN,
     para no guardar secretos en ficheros que podrían acabar en Git.
     """
-    with open(config_path, "r", encoding="utf-8") as f:
+    with open(config_path, encoding="utf-8") as f:
         datos = yaml.safe_load(f)
 
     wiki_url = os.environ.get("WIKI_URL")
@@ -37,13 +37,15 @@ def load_config(config_path="wikijs-sync.yml"):
 
     locale = datos.get("locale", "es")
     # Idiomas admitidos como sufijo. Siempre incluye el principal.
-    locales = {str(l).lower() for l in datos.get("locales", [])} | {locale}
-    
+    locales = {str(loc).lower() for loc in datos.get("locales", [])} | {locale}
+
     # Mapeo de idiomas: permite usar .va.md en los ficheros pero publicar como 'ca'.
     locale_map = {str(k).lower(): str(v).lower() for k, v in datos.get("locale_map", {}).items()}
-    
+
     # Avisar de claves desconocidas en el YAML (ayuda a detectar typos).
-    claves_conocidas = {"base_path", "docs_dir", "locale", "locales", "locale_map", "tag", "source_url"}
+    claves_conocidas = {
+        "base_path", "docs_dir", "locale", "locales", "locale_map", "tag", "source_url"
+    }
     desconocidas = set(datos.keys()) - claves_conocidas
     if desconocidas:
         print(f"  AVISO: claves desconocidas en wikijs-sync.yml: {', '.join(sorted(desconocidas))}")
@@ -65,4 +67,4 @@ def load_config(config_path="wikijs-sync.yml"):
         wiki_url=wiki_url,
         wiki_token=wiki_token,
     )
-     
+

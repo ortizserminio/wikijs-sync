@@ -3,8 +3,8 @@ import argparse
 import sys
 
 from wikijs_sync.config import load_config
-from wikijs_sync.wikijs import WikiJsClient
 from wikijs_sync.sync import sync
+from wikijs_sync.wikijs import WikiJsClient
 
 
 def main(argv=None):

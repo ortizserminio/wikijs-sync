@@ -1,7 +1,8 @@
 """Pruebas de la reconciliación con un cliente falso (sin wiki real)."""
 from wikijs_sync.config import Config
-from wikijs_sync.sync import sync
 from wikijs_sync.scanner import scan
+from wikijs_sync.sync import sync
+
 
 class ClienteFalso:
     """Imita a WikiJsClient guardando en memoria lo que se le pide."""

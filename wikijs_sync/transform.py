@@ -4,7 +4,6 @@ import re
 
 import yaml
 
-
 # Patrón para bloques de código: ```...``` o ~~~...~~~
 # Usamos re.DOTALL para que . incluya saltos de línea
 _CODE_BLOCK_RE = re.compile(r"(```[\s\S]*?```|~~~[\s\S]*?~~~)")
@@ -15,22 +14,22 @@ _CODE_INLINE_RE = re.compile(r"(`[^`\n]+`)")
 
 def _protect_code_blocks(content):
     """Extrae bloques de código y los reemplaza por marcadores.
-    
+
     Devuelve (contenido_sin_bloques, lista_de_bloques).
     Los bloques se reemplazan por marcadores como <<<CODE_BLOCK_0>>>.
     """
     bloques = []
-    
+
     def _guardar(match):
         idx = len(bloques)
         bloques.append(match.group(0))
         return f"<<<CODE_BLOCK_{idx}>>>"
-    
+
     # Primero los bloques ``` o ~~~
     contenido = _CODE_BLOCK_RE.sub(_guardar, content)
     # Luego los inline `código`
     contenido = _CODE_INLINE_RE.sub(_guardar, contenido)
-    
+
     return contenido, bloques
 
 
@@ -89,7 +88,10 @@ def split_front_matter(text):
 _LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 
 
-def rewrite_links(content, source_rel, compute_path, base_path, known_files=None, broken=None, allowed_locales=None):
+def rewrite_links(
+    content, source_rel, compute_path, base_path,
+    known_files=None, broken=None, allowed_locales=None
+):
     """Reescribe los enlaces relativos a .md como rutas de la wiki.
 
     - content:      el texto markdown de la página.
@@ -107,19 +109,19 @@ def rewrite_links(content, source_rel, compute_path, base_path, known_files=None
 
     Solo toca enlaces relativos que apuntan a ficheros .md. Deja intactos los
     enlaces externos (http...), anclas (#...) y los que no son .md.
-    
+
     IMPORTANTE: No toca enlaces dentro de bloques de código (``` o `).
     """
     # Proteger bloques de código para no tocarlos
     contenido, bloques = _protect_code_blocks(content)
-    
+
     carpeta = posixpath.dirname(source_rel.replace("\\", "/"))
     if allowed_locales is None:
         allowed_locales = set()
 
     def _quitar_sufijo_idioma(nombre):
         """Quita el sufijo de idioma de un nombre de fichero si lo tiene.
-        
+
         'guia.va.md' -> 'guia.md' (si 'va' está en allowed_locales)
         'guia.md'    -> 'guia.md' (sin cambio)
         'config.js.md' -> 'config.js.md' (js no es idioma)
@@ -147,22 +149,24 @@ def rewrite_links(content, source_rel, compute_path, base_path, known_files=None
         # Así 'guia.va.md' se convierte en 'guia.md' para calcular el path.
         destino_sin_idioma = _quitar_sufijo_idioma(posixpath.basename(destino))
         destino_dir = posixpath.dirname(destino)
-        destino_normalizado = posixpath.join(destino_dir, destino_sin_idioma) if destino_dir else destino_sin_idioma
+        if destino_dir:
+            destino_normalizado = posixpath.join(destino_dir, destino_sin_idioma)
+        else:
+            destino_normalizado = destino_sin_idioma
 
         # Resolver el destino respecto a la carpeta del fichero actual
         objetivo = posixpath.normpath(posixpath.join(carpeta, destino_normalizado))
 
         # Detección de enlaces rotos: si tenemos la lista de ficheros del repo y
         # el destino no está en ella, es un enlace a un fichero que no existe.
-        if known_files is not None and objetivo not in known_files:
-            if broken is not None:
-                broken.append((source_rel.replace("\\", "/"), destino))
+        if known_files is not None and objetivo not in known_files and broken is not None:
+            broken.append((source_rel.replace("\\", "/"), destino))
 
         wiki_path = compute_path(objetivo, base_path)
         return f"[{texto}](/{wiki_path}{ancla})"
 
     contenido = _LINK_RE.sub(_sub, contenido)
-    
+
     # Restaurar los bloques de código
     return _restore_code_blocks(contenido, bloques)
 
@@ -202,7 +206,7 @@ def rewrite_images(content, source_rel, docs_dir, upload, uploaded=None):
     - uploaded:   dict opcional {ruta_local: nombre_en_wiki} para no subir dos veces la misma.
 
     Solo toca imágenes locales (no http). Deja intactas las externas.
-    
+
     IMPORTANTE: No toca imágenes dentro de bloques de código (``` o `).
     """
     import os
@@ -242,6 +246,6 @@ def rewrite_images(content, source_rel, docs_dir, upload, uploaded=None):
         return f"![{texto}](/{nombre_wiki})"
 
     contenido = _IMG_RE.sub(_sub, contenido)
-    
+
     # Restaurar los bloques de código
     return _restore_code_blocks(contenido, bloques)

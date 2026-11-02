@@ -1,10 +1,15 @@
 """Escáner: recorre docs/ y convierte cada .md en datos de página."""
+import posixpath
 import re
 import unicodedata
-import posixpath
 from pathlib import Path
 
-from wikijs_sync.transform import split_front_matter, rewrite_links, add_notice, rewrite_images
+from wikijs_sync.transform import (
+    add_notice,
+    rewrite_images,
+    rewrite_links,
+    split_front_matter,
+)
 
 
 def slugify(text):
@@ -88,7 +93,7 @@ def asset_name(base_path, ruta_disco):
 
 def extract_title(content, fallback):
     """Título = primer encabezado '# ...' del documento; si no, el fallback.
-    
+
     IMPORTANTE: Ignora los encabezados dentro de bloques de código (``` o ~~~).
     Así un comentario de bash como '# instalar' no se toma como título.
     """
@@ -97,7 +102,7 @@ def extract_title(content, fallback):
     contenido_sin_codigo = re.sub(r"```[\s\S]*?```|~~~[\s\S]*?~~~", "", content)
     # También eliminar código inline `...`
     contenido_sin_codigo = re.sub(r"`[^`\n]+`", "", contenido_sin_codigo)
-    
+
     for linea in contenido_sin_codigo.splitlines():
         m = re.match(r"^#\s+(.+)", linea.strip())
         if m:
@@ -108,10 +113,11 @@ def extract_title(content, fallback):
 
 class ScanError(Exception):
     """Error durante el escaneo de documentos."""
-    pass
 
 
-def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=None, source_url=None):
+def scan(
+    docs_dir, base_path, default_locale="es", client=None, allowed_locales=None, source_url=None
+):
 
     """Devuelve una lista de dicts, uno por cada .md encontrado.
 
@@ -127,12 +133,12 @@ def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=
 
     Además, detecta enlaces internos ROTOS (enlaces a .md que no existen en el
     repositorio) y los avisa por el log, sin detener la sincronización.
-    
+
     Lanza ScanError si docs_dir no existe o no contiene ningún .md (protección
     contra borrados accidentales con --prune).
     """
     docs_dir = Path(docs_dir)
-    
+
     # Protección crítica: abortar si docs_dir no existe o está vacío.
     # Sin esto, --prune borraría TODAS las páginas gestionadas.
     if not docs_dir.exists():
@@ -140,9 +146,9 @@ def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=
             f"La carpeta docs_dir '{docs_dir}' no existe. "
             f"Revisa el valor de docs_dir en wikijs-sync.yml."
         )
-    
+
     ficheros = sorted(docs_dir.rglob("*.md"))
-    
+
     if not ficheros:
         raise ScanError(
             f"La carpeta '{docs_dir}' no contiene ningún fichero .md. "
@@ -158,7 +164,7 @@ def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=
         carpeta = "/".join(rel.split("/")[:-1])
         _loc, nombre_base = split_locale(rel.split("/")[-1], default_locale, allowed_locales)
         known_files.add(f"{carpeta}/{nombre_base}" if carpeta else nombre_base)
-    
+
     # Assets que ya están en la wiki (para no volver a subirlos).
     existentes = client.list_asset_names() if client is not None else set()
 
@@ -196,7 +202,7 @@ def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=
         if not isinstance(tags, list):
             tags = [tags]
 
-        
+
         # Subir las imágenes locales y reescribir sus rutas.
         # Se hace siempre (incluso sin cliente) para que dry-run calcule el mismo contenido.
         antes = len(uploaded)
@@ -214,7 +220,7 @@ def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=
             known_files=known_files, broken=broken,
             allowed_locales=allowed_locales,
         )
-        
+
         enlace = None
         if source_url:
             ruta_repo = posixpath.join(str(docs_dir).replace("\\", "/"), rel_str)
@@ -253,7 +259,7 @@ def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=
             colisiones.append((p["source"], vistos[clave], p["path"], p["locale"]))
         else:
             vistos[clave] = p["source"]
-    
+
     if colisiones:
         msg = "Colisión de paths: varios ficheros generan la misma página.\n"
         for nuevo, existente, path, locale in colisiones:

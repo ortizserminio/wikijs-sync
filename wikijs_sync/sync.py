@@ -1,6 +1,7 @@
 """Reconciliación: compara los .md con la wiki y crea/actualiza/borra páginas."""
 from wikijs_sync.scanner import scan
 
+
 def _bajo_base_path(path, base_path):
     """True si path ES base_path o cuelga de él (con barra)."""
     return path == base_path or path.startswith(base_path + "/")
@@ -60,7 +61,7 @@ def sync(client, cfg, dry_run=False, prune=False):
     en_wiki = _wiki_pages_by_path(client, cfg)
     # Claves deseadas como (path, locale), aplicando locale_map.
     claves_deseadas = {
-        (p["path"], cfg.locale_map.get(p["locale"], p["locale"])) 
+        (p["path"], cfg.locale_map.get(p["locale"], p["locale"]))
         for p in deseadas
     }
 
@@ -78,7 +79,7 @@ def sync(client, cfg, dry_run=False, prune=False):
         contenido = pagina["content"]
         descripcion = pagina.get("description", "")
         # Combina las tags del fichero con el tag de la herramienta (sin duplicar).
-        tags = list(dict.fromkeys(pagina.get("tags", []) + [cfg.tag]))
+        tags = list(dict.fromkeys([*pagina.get("tags", []), cfg.tag]))
         clave = (path, locale)
         etiqueta = f"{path} [{locale}]"      # para el log, mostrando el idioma
 

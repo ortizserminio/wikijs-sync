@@ -1,4 +1,5 @@
-from wikijs_sync.transform import split_front_matter
+from wikijs_sync.scanner import compute_path
+from wikijs_sync.transform import add_notice, rewrite_images, rewrite_links, split_front_matter
 
 
 def test_sin_front_matter():
@@ -30,9 +31,6 @@ def test_apertura_sin_cierre_no_es_front_matter():
     assert meta == {}
     assert contenido == texto
 
-
-from wikijs_sync.transform import rewrite_links, add_notice
-from wikijs_sync.scanner import compute_path
 
 
 def test_enlace_relativo_mismo_nivel():
@@ -98,9 +96,6 @@ def test_sin_known_files_no_detecta_rotos():
     out = rewrite_links(content, "guia.md", compute_path, "pruebas", broken=rotos)
     assert rotos == []
     assert "(/pruebas/otro)" in out   # el enlace se reescribe igual
-
-
-from wikijs_sync.transform import rewrite_images
 
 
 def test_imagen_externa_no_se_toca():
@@ -171,7 +166,7 @@ def test_imagen_en_bloque_codigo_no_se_toca(tmp_path):
     """Las imágenes dentro de bloques ``` no deben reescribirse."""
     # Crear imagen real
     (tmp_path / "logo.png").write_bytes(b"PNG fake")
-    
+
     contenido = """# Ejemplo
 
 Imagen real: ![logo](logo.png)
@@ -184,9 +179,9 @@ Imagen real: ![logo](logo.png)
     def fake_upload(ruta, nombre):
         subidas.append(nombre)
         return "uploaded-" + nombre
-    
+
     resultado = rewrite_images(contenido, "doc.md", tmp_path, fake_upload)
-    
+
     # La imagen real SÍ se sube y reescribe
     assert "![logo](/uploaded-logo.png)" in resultado
     # La imagen dentro de ``` NO se toca

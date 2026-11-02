@@ -1,4 +1,5 @@
-from wikijs_sync.scanner import slugify, compute_path, extract_title, split_locale
+from wikijs_sync.scanner import compute_path, extract_title, slugify, split_locale
+
 IDIOMAS = {"es", "va", "en"}
 
 
@@ -90,14 +91,15 @@ def test_imagen_mismo_contenido_en_dry_run_y_real(tmp_path):
     assert cliente.subidas[0].startswith("pruebas-redes--logo-")
 
 def test_imagen_ya_subida_no_se_vuelve_a_subir(tmp_path):
-    from wikijs_sync.scanner import scan, asset_name
+    from wikijs_sync.scanner import asset_name, scan
 
     (tmp_path / "logo.png").write_bytes(b"png")
     (tmp_path / "a.md").write_text("![logo](logo.png)\n", encoding="utf-8")
     ya_esta = asset_name("pruebas/redes", tmp_path / "logo.png")
 
     class ClienteFalso:
-        subidas = []
+        def __init__(self):
+            self.subidas = []
         def list_asset_names(self):
             return {ya_esta}
         def upload_asset(self, ruta, nombre):
@@ -111,18 +113,20 @@ def test_imagen_ya_subida_no_se_vuelve_a_subir(tmp_path):
 # --- Tests para protección de docs_dir vacío (Problema 1) ---
 def test_scan_falla_si_docs_dir_no_existe(tmp_path):
     """scan() debe fallar si docs_dir no existe (protección contra --prune destructivo)."""
-    from wikijs_sync.scanner import scan, ScanError
     import pytest
-    
+
+    from wikijs_sync.scanner import ScanError, scan
+
     with pytest.raises(ScanError) as exc:
         scan(str(tmp_path / "no-existe"), "pruebas")
     assert "no existe" in str(exc.value)
 
 def test_scan_falla_si_docs_dir_vacio(tmp_path):
     """scan() debe fallar si docs_dir existe pero no tiene .md."""
-    from wikijs_sync.scanner import scan, ScanError
     import pytest
-    
+
+    from wikijs_sync.scanner import ScanError, scan
+
     # Carpeta existe pero vacía
     (tmp_path / "docs").mkdir()
     with pytest.raises(ScanError) as exc:
@@ -133,11 +137,11 @@ def test_scan_falla_si_docs_dir_vacio(tmp_path):
 def test_scan_ignora_bom_de_windows(tmp_path):
     """Los ficheros con BOM de Windows deben parsearse correctamente."""
     from wikijs_sync.scanner import scan
-    
+
     # Escribir fichero con BOM (común en Windows)
     contenido_con_bom = b'\xef\xbb\xbf---\ntitle: Con BOM\n---\n# Titulo\n'
     (tmp_path / "doc.md").write_bytes(contenido_con_bom)
-    
+
     paginas = scan(str(tmp_path), "pruebas")
     assert len(paginas) == 1
     # El front matter debe haberse parseado bien (título del YAML, no del #)
@@ -148,7 +152,7 @@ def test_scan_ignora_bom_de_windows(tmp_path):
 def test_titulo_ignora_comentario_en_bloque_codigo():
     """El título no debe salir de un comentario dentro de un bloque de código."""
     from wikijs_sync.scanner import extract_title
-    
+
     contenido = """```bash
 # instalar paquetes
 apt-get install python3
@@ -166,7 +170,7 @@ Contenido aquí.
 def test_titulo_fallback_si_solo_hay_codigo():
     """Si solo hay comentarios en código, usa el fallback."""
     from wikijs_sync.scanner import extract_title
-    
+
     contenido = """```python
 # Este es un comentario de Python
 print("hola")
@@ -181,43 +185,45 @@ Sin encabezado real aquí.
 # --- Test para Error 6: colisiones de path ---
 def test_colision_guia_mayuscula_minuscula(tmp_path):
     """Detecta colisión cuando Guía.md y guia.md generan el mismo path."""
-    from wikijs_sync.scanner import scan, ScanError
     import pytest
-    
+
+    from wikijs_sync.scanner import ScanError, scan
+
     # Ambos generan el mismo path: /base/guia
     (tmp_path / "Guía.md").write_text("# Con tilde\n", encoding="utf-8")
     (tmp_path / "guia.md").write_text("# Sin tilde\n", encoding="utf-8")
-    
+
     with pytest.raises(ScanError) as exc:
         scan(str(tmp_path), "base")
-    
+
     assert "Colisión" in str(exc.value)
     assert "guia" in str(exc.value).lower()
 
 
 def test_colision_readme_index(tmp_path):
     """Detecta colisión cuando README.md e index.md están en la misma carpeta."""
-    from wikijs_sync.scanner import scan, ScanError
     import pytest
-    
+
+    from wikijs_sync.scanner import ScanError, scan
+
     # Ambos representan la página de la carpeta raíz
     (tmp_path / "README.md").write_text("# Readme\n", encoding="utf-8")
     (tmp_path / "index.md").write_text("# Index\n", encoding="utf-8")
-    
+
     with pytest.raises(ScanError) as exc:
         scan(str(tmp_path), "base")
-    
+
     assert "Colisión" in str(exc.value)
 
 
 def test_sin_colision_diferentes_idiomas(tmp_path):
     """No es colisión si son el mismo fichero en diferentes idiomas."""
     from wikijs_sync.scanner import scan
-    
+
     # guia.md (es) y guia.va.md (va) comparten path pero distinto locale: OK
     (tmp_path / "guia.md").write_text("# Guía ES\n", encoding="utf-8")
     (tmp_path / "guia.va.md").write_text("# Guía VA\n", encoding="utf-8")
-    
+
     # No debe lanzar error
     paginas = scan(str(tmp_path), "base", allowed_locales={"es", "va"})
     assert len(paginas) == 2
