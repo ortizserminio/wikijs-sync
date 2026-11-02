@@ -87,8 +87,18 @@ def asset_name(base_path, ruta_disco):
 
 
 def extract_title(content, fallback):
-    """Título = primer encabezado '# ...' del documento; si no, el fallback."""
-    for linea in content.splitlines():
+    """Título = primer encabezado '# ...' del documento; si no, el fallback.
+    
+    IMPORTANTE: Ignora los encabezados dentro de bloques de código (``` o ~~~).
+    Así un comentario de bash como '# instalar' no se toma como título.
+    """
+    # Eliminar bloques de código antes de buscar el título
+    # Patrón: ```...``` o ~~~...~~~ (multilínea)
+    contenido_sin_codigo = re.sub(r"```[\s\S]*?```|~~~[\s\S]*?~~~", "", content)
+    # También eliminar código inline `...`
+    contenido_sin_codigo = re.sub(r"`[^`\n]+`", "", contenido_sin_codigo)
+    
+    for linea in contenido_sin_codigo.splitlines():
         m = re.match(r"^#\s+(.+)", linea.strip())
         if m:
             return m.group(1).strip()

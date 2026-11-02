@@ -142,3 +142,37 @@ def test_scan_ignora_bom_de_windows(tmp_path):
     assert len(paginas) == 1
     # El front matter debe haberse parseado bien (título del YAML, no del #)
     assert paginas[0]["title"] == "Con BOM"
+
+
+# --- Test para Error 5: título no sale de comentario en código ---
+def test_titulo_ignora_comentario_en_bloque_codigo():
+    """El título no debe salir de un comentario dentro de un bloque de código."""
+    from wikijs_sync.scanner import extract_title
+    
+    contenido = """```bash
+# instalar paquetes
+apt-get install python3
+```
+
+# Título Real
+
+Contenido aquí.
+"""
+    titulo = extract_title(contenido, "fallback")
+    # Debe ser "Título Real", no "instalar paquetes"
+    assert titulo == "Título Real"
+
+
+def test_titulo_fallback_si_solo_hay_codigo():
+    """Si solo hay comentarios en código, usa el fallback."""
+    from wikijs_sync.scanner import extract_title
+    
+    contenido = """```python
+# Este es un comentario de Python
+print("hola")
+```
+
+Sin encabezado real aquí.
+"""
+    titulo = extract_title(contenido, "mi-fallback")
+    assert titulo == "mi-fallback"
