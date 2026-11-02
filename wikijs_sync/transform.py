@@ -89,7 +89,7 @@ def split_front_matter(text):
 _LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 
 
-def rewrite_links(content, source_rel, compute_path, base_path, known_files=None, broken=None):
+def rewrite_links(content, source_rel, compute_path, base_path, known_files=None, broken=None, allowed_locales=None):
     """Reescribe los enlaces relativos a .md como rutas de la wiki.
 
     - content:      el texto markdown de la página.
@@ -97,10 +97,13 @@ def rewrite_links(content, source_rel, compute_path, base_path, known_files=None
                     'instalacion/requisitos.md'), para resolver los enlaces.
     - compute_path: la función del escáner que calcula el path de wiki.
     - base_path:    el prefijo de la rama de conocimiento.
-    - known_files:  conjunto (set) con las rutas relativas de TODOS los .md del repo.
+    - known_files:  conjunto (set) con las rutas relativas de TODOS los .md del repo,
+                    usando el nombre SIN sufijo de idioma.
                     Si se pasa, se detectan enlaces rotos (destinos que no existen).
     - broken:       lista donde se añaden los enlaces rotos encontrados, como tuplas
                     (fichero_origen, destino). Si se pasa, se rellena por efecto lateral.
+    - allowed_locales: conjunto de idiomas permitidos (ej: {'es', 'va', 'ca'}).
+                    Se usa para detectar sufijos de idioma en los enlaces destino.
 
     Solo toca enlaces relativos que apuntan a ficheros .md. Deja intactos los
     enlaces externos (http...), anclas (#...) y los que no son .md.
@@ -111,6 +114,20 @@ def rewrite_links(content, source_rel, compute_path, base_path, known_files=None
     contenido, bloques = _protect_code_blocks(content)
     
     carpeta = posixpath.dirname(source_rel.replace("\\", "/"))
+    if allowed_locales is None:
+        allowed_locales = set()
+
+    def _quitar_sufijo_idioma(nombre):
+        """Quita el sufijo de idioma de un nombre de fichero si lo tiene.
+        
+        'guia.va.md' -> 'guia.md' (si 'va' está en allowed_locales)
+        'guia.md'    -> 'guia.md' (sin cambio)
+        'config.js.md' -> 'config.js.md' (js no es idioma)
+        """
+        partes = nombre.split(".")
+        if len(partes) >= 3 and partes[-2].lower() in allowed_locales:
+            return ".".join(partes[:-2]) + ".md"
+        return nombre
 
     def _sub(match):
         texto, destino = match.group(1), match.group(2)
@@ -126,8 +143,14 @@ def rewrite_links(content, source_rel, compute_path, base_path, known_files=None
         if not destino.endswith(".md"):
             return match.group(0)
 
+        # Quitar el sufijo de idioma del destino si lo tiene.
+        # Así 'guia.va.md' se convierte en 'guia.md' para calcular el path.
+        destino_sin_idioma = _quitar_sufijo_idioma(posixpath.basename(destino))
+        destino_dir = posixpath.dirname(destino)
+        destino_normalizado = posixpath.join(destino_dir, destino_sin_idioma) if destino_dir else destino_sin_idioma
+
         # Resolver el destino respecto a la carpeta del fichero actual
-        objetivo = posixpath.normpath(posixpath.join(carpeta, destino))
+        objetivo = posixpath.normpath(posixpath.join(carpeta, destino_normalizado))
 
         # Detección de enlaces rotos: si tenemos la lista de ficheros del repo y
         # el destino no está en ella, es un enlace a un fichero que no existe.

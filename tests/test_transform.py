@@ -193,3 +193,47 @@ Imagen real: ![logo](logo.png)
     assert "![ejemplo](otra.png)" in resultado
     # Solo se subió una imagen
     assert len(subidas) == 1
+
+
+# --- Tests para Error 7: enlaces a otro idioma ---
+def test_enlace_a_version_otro_idioma():
+    """Un enlace a guia.va.md debe generar /base/guia, no /base/guia-va."""
+    contenido = "[valenciano](guia.va.md)"
+    resultado = rewrite_links(
+        contenido, "index.md",
+        lambda p, b: f"{b}/{p.replace('.md','')}",
+        "base",
+        allowed_locales={"es", "va"},
+    )
+    # El sufijo .va se quita, el path es /base/guia
+    assert resultado == "[valenciano](/base/guia)"
+
+
+def test_enlace_a_otro_idioma_no_marca_roto():
+    """Un enlace a guia.va.md no debe marcarse como roto si guia.md existe."""
+    contenido = "[valenciano](guia.va.md)"
+    broken = []
+    # known_files tiene 'guia.md' (sin el sufijo de idioma)
+    resultado = rewrite_links(
+        contenido, "index.md",
+        lambda p, b: f"{b}/{p.replace('.md','')}",
+        "base",
+        known_files={"guia.md"},
+        broken=broken,
+        allowed_locales={"es", "va"},
+    )
+    # No debe haber enlaces rotos
+    assert broken == []
+    assert resultado == "[valenciano](/base/guia)"
+
+
+def test_enlace_sin_sufijo_idioma_no_cambia():
+    """Un enlace normal sin sufijo de idioma funciona igual."""
+    contenido = "[guía](guia.md)"
+    resultado = rewrite_links(
+        contenido, "index.md",
+        lambda p, b: f"{b}/{p.replace('.md','')}",
+        "base",
+        allowed_locales={"es", "va"},
+    )
+    assert resultado == "[guía](/base/guia)"

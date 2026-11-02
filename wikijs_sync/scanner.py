@@ -212,6 +212,7 @@ def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=
         contenido = rewrite_links(
             contenido, rel_sin_idioma, compute_path, base_path,
             known_files=known_files, broken=broken,
+            allowed_locales=allowed_locales,
         )
         
         enlace = None
