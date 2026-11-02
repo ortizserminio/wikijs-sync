@@ -96,6 +96,11 @@ def extract_title(content, fallback):
 
 
 
+class ScanError(Exception):
+    """Error durante el escaneo de documentos."""
+    pass
+
+
 def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=None, source_url=None):
 
     """Devuelve una lista de dicts, uno por cada .md encontrado.
@@ -112,9 +117,27 @@ def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=
 
     Además, detecta enlaces internos ROTOS (enlaces a .md que no existen en el
     repositorio) y los avisa por el log, sin detener la sincronización.
+    
+    Lanza ScanError si docs_dir no existe o no contiene ningún .md (protección
+    contra borrados accidentales con --prune).
     """
     docs_dir = Path(docs_dir)
+    
+    # Protección crítica: abortar si docs_dir no existe o está vacío.
+    # Sin esto, --prune borraría TODAS las páginas gestionadas.
+    if not docs_dir.exists():
+        raise ScanError(
+            f"La carpeta docs_dir '{docs_dir}' no existe. "
+            f"Revisa el valor de docs_dir en wikijs-sync.yml."
+        )
+    
     ficheros = sorted(docs_dir.rglob("*.md"))
+    
+    if not ficheros:
+        raise ScanError(
+            f"La carpeta '{docs_dir}' no contiene ningún fichero .md. "
+            f"¿Está bien configurado docs_dir en wikijs-sync.yml?"
+        )
 
     # Lista de .md que existen, usando el nombre SIN el sufijo de idioma.
     # Así un enlace a 'guia.md' se considera válido aunque solo exista 'guia.va.md'
@@ -150,7 +173,8 @@ def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=
         locale, nombre_base = split_locale(rel_str.split("/")[-1], default_locale, allowed_locales)
         rel_sin_idioma = f"{carpeta}/{nombre_base}" if carpeta else nombre_base
 
-        bruto = fichero.read_text(encoding="utf-8")
+        # utf-8-sig ignora el BOM de Windows (evita romper el front matter).
+        bruto = fichero.read_text(encoding="utf-8-sig")
         meta, contenido = split_front_matter(bruto)
 
         # El path se calcula con el nombre SIN el sufijo de idioma, para que las

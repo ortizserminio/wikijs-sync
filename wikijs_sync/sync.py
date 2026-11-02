@@ -58,8 +58,11 @@ def sync(client, cfg, dry_run=False, prune=False):
 
     )
     en_wiki = _wiki_pages_by_path(client, cfg)
-    # Claves deseadas como (path, locale), porque una ruta puede existir en varios idiomas.
-    claves_deseadas = {(p["path"], p["locale"]) for p in deseadas}
+    # Claves deseadas como (path, locale), aplicando locale_map.
+    claves_deseadas = {
+        (p["path"], cfg.locale_map.get(p["locale"], p["locale"])) 
+        for p in deseadas
+    }
 
     creadas = actualizadas = sin_cambios = borradas = 0
     marca = "[dry-run] " if dry_run else ""
@@ -68,7 +71,9 @@ def sync(client, cfg, dry_run=False, prune=False):
     # --- Crear y actualizar ---
     for pagina in deseadas:
         path = pagina["path"]
-        locale = pagina["locale"]           # locale propio de esta página (es, va, ...)
+        locale_fichero = pagina["locale"]   # locale del fichero (ej: 'va')
+        # Aplicar locale_map: si 'va' está mapeado a 'ca', se publica como 'ca'.
+        locale = cfg.locale_map.get(locale_fichero, locale_fichero)
         titulo = pagina["title"]
         contenido = pagina["content"]
         descripcion = pagina.get("description", "")

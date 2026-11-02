@@ -37,8 +37,9 @@ def _cfg(docs):
         base_path="pruebas/redes",
         docs_dir=str(docs),
         locale="es",
-        tag="gitlab-sync",
+        tag="gitlab-sync:pruebas/redes",  # tag incluye base_path
         locales=["es"],
+        locale_map={},
         source_url="",
         wiki_url="http://fake",
         wiki_token="fake-token",
@@ -47,9 +48,10 @@ def _cfg(docs):
 # --- Error 1: prune no borra páginas de otra rama ---
 def test_prune_no_borra_otra_rama_con_mismo_prefijo(tmp_path):
     (tmp_path / "a.md").write_text("# A\n", encoding="utf-8")
+    # Esta página tiene un tag de OTRO base_path, no debe borrarse
     ajena = {
         "id": 99, "path": "pruebas/redes-antiguo/guia", "locale": "es",
-        "title": "G", "tags": ["gitlab-sync"],
+        "title": "G", "tags": ["gitlab-sync:pruebas/redes-antiguo"],
     }
     cliente = ClienteFalso([ajena])
     sync(cliente, _cfg(tmp_path), prune=True)
@@ -67,9 +69,10 @@ def test_prune_no_borra_paginas_sin_nuestro_tag(tmp_path):
 
 def test_prune_borra_huerfana_propia(tmp_path):
     (tmp_path / "a.md").write_text("# A\n", encoding="utf-8")
+    # Esta página SÍ tiene nuestro tag, debe borrarse
     huerfana = {
         "id": 7, "path": "pruebas/redes/vieja", "locale": "es",
-        "title": "V", "tags": ["gitlab-sync"],
+        "title": "V", "tags": ["gitlab-sync:pruebas/redes"],
     }
     cliente = ClienteFalso([huerfana])
     sync(cliente, _cfg(tmp_path), prune=True)
@@ -89,7 +92,7 @@ def test_cambio_solo_de_description_se_actualiza(tmp_path):
     deseada = scan(str(tmp_path), "pruebas/redes")[0]
     en_wiki = {
         "id": 1, "path": "pruebas/redes/a", "locale": "es", "title": "A",
-        "description": "vieja", "content": deseada["content"], "tags": ["gitlab-sync"],
+        "description": "vieja", "content": deseada["content"], "tags": ["gitlab-sync:pruebas/redes"],
     }
     resumen = sync(ClienteFalso([en_wiki]), _cfg(tmp_path))
     assert resumen["actualizadas"] == 1
@@ -99,8 +102,30 @@ def test_idempotente_aunque_wiki_cambie_saltos_de_linea(tmp_path):
     deseada = scan(str(tmp_path), "pruebas/redes")[0]
     en_wiki = {
         "id": 1, "path": "pruebas/redes/a", "locale": "es", "title": "A",
-        "description": "", "content": deseada["content"] + "\n\n", "tags": ["gitlab-sync"],
+        "description": "", "content": deseada["content"] + "\n\n", "tags": ["gitlab-sync:pruebas/redes"],
     }
     cliente = ClienteFalso([en_wiki])
     resumen = sync(cliente, _cfg(tmp_path))
     assert resumen["sin_cambios"] == 1 and cliente.actualizadas == []
+
+
+# --- Tests para locale_map ---
+def test_locale_map_transforma_va_a_ca(tmp_path):
+    """locale_map permite publicar .va.md como locale 'ca'."""
+    (tmp_path / "guia.va.md").write_text("# Guía\n", encoding="utf-8")
+    cfg = Config(
+        base_path="pruebas/redes",
+        docs_dir=str(tmp_path),
+        locale="es",
+        tag="gitlab-sync:pruebas/redes",
+        locales=["es", "va"],
+        locale_map={"va": "ca"},  # va -> ca
+        source_url="",
+        wiki_url="http://fake",
+        wiki_token="fake-token",
+    )
+    cliente = ClienteFalso([])
+    sync(cliente, cfg)
+    # Debe crear con locale 'ca', no 'va'
+    assert len(cliente.creadas) == 1
+    assert cliente.creadas[0] == "pruebas/redes/guia"

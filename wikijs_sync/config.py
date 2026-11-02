@@ -13,6 +13,7 @@ class Config:
     locale: str
     tag: str
     locales: list
+    locale_map: dict  # mapeo de idiomas: {'va': 'ca'} -> los .va.md se publican como ca
     source_url: str 
     wiki_url: str
     wiki_token: str
@@ -37,13 +38,29 @@ def load_config(config_path="wikijs-sync.yml"):
     locale = datos.get("locale", "es")
     # Idiomas admitidos como sufijo. Siempre incluye el principal.
     locales = {str(l).lower() for l in datos.get("locales", [])} | {locale}
+    
+    # Mapeo de idiomas: permite usar .va.md en los ficheros pero publicar como 'ca'.
+    locale_map = {str(k).lower(): str(v).lower() for k, v in datos.get("locale_map", {}).items()}
+    
+    # Avisar de claves desconocidas en el YAML (ayuda a detectar typos).
+    claves_conocidas = {"base_path", "docs_dir", "locale", "locales", "locale_map", "tag", "source_url"}
+    desconocidas = set(datos.keys()) - claves_conocidas
+    if desconocidas:
+        print(f"  AVISO: claves desconocidas en wikijs-sync.yml: {', '.join(sorted(desconocidas))}")
+
+    # Tag único por repo: incluye el base_path para evitar conflictos entre repos
+    # con base_paths anidados (ej: conocimiento/sistemas vs conocimiento/sistemas/redes).
+    tag_base = datos.get("tag", "gitlab-sync")
+    base_path = datos["base_path"].strip("/")
+    tag = f"{tag_base}:{base_path}"
 
     return Config(
-        base_path=datos["base_path"].strip("/"),
+        base_path=base_path,
         docs_dir=datos["docs_dir"],
         locale=locale,
-        tag=datos.get("tag", "gitlab-sync"),
+        tag=tag,
         locales=sorted(locales),
+        locale_map=locale_map,
         source_url=datos.get("source_url", ""),
         wiki_url=wiki_url,
         wiki_token=wiki_token,

@@ -106,3 +106,39 @@ def test_imagen_ya_subida_no_se_vuelve_a_subir(tmp_path):
     cliente = ClienteFalso()
     scan(str(tmp_path), "pruebas/redes", client=cliente)
     assert cliente.subidas == []
+
+
+# --- Tests para protección de docs_dir vacío (Problema 1) ---
+def test_scan_falla_si_docs_dir_no_existe(tmp_path):
+    """scan() debe fallar si docs_dir no existe (protección contra --prune destructivo)."""
+    from wikijs_sync.scanner import scan, ScanError
+    import pytest
+    
+    with pytest.raises(ScanError) as exc:
+        scan(str(tmp_path / "no-existe"), "pruebas")
+    assert "no existe" in str(exc.value)
+
+def test_scan_falla_si_docs_dir_vacio(tmp_path):
+    """scan() debe fallar si docs_dir existe pero no tiene .md."""
+    from wikijs_sync.scanner import scan, ScanError
+    import pytest
+    
+    # Carpeta existe pero vacía
+    (tmp_path / "docs").mkdir()
+    with pytest.raises(ScanError) as exc:
+        scan(str(tmp_path / "docs"), "pruebas")
+    assert "ningún fichero .md" in str(exc.value)
+
+# --- Test para BOM (Problema 8) ---
+def test_scan_ignora_bom_de_windows(tmp_path):
+    """Los ficheros con BOM de Windows deben parsearse correctamente."""
+    from wikijs_sync.scanner import scan
+    
+    # Escribir fichero con BOM (común en Windows)
+    contenido_con_bom = b'\xef\xbb\xbf---\ntitle: Con BOM\n---\n# Titulo\n'
+    (tmp_path / "doc.md").write_bytes(contenido_con_bom)
+    
+    paginas = scan(str(tmp_path), "pruebas")
+    assert len(paginas) == 1
+    # El front matter debe haberse parseado bien (título del YAML, no del #)
+    assert paginas[0]["title"] == "Con BOM"
