@@ -141,3 +141,55 @@ def test_aviso_con_enlace_al_origen():
     assert resultado.startswith("> Esta página se genera automáticamente")
     assert f"[guia.md]({url})" in resultado
     assert resultado.endswith("# Hola")
+
+
+# --- Test para Error 4: enlaces en bloques de código no se tocan ---
+def test_enlace_en_bloque_codigo_no_se_toca():
+    """Los enlaces dentro de bloques ``` no deben reescribirse."""
+    contenido = """# Ejemplo
+
+Aquí un enlace normal: [guía](guia.md)
+
+```markdown
+[ejemplo](otro.md)
+```
+
+Y código inline: `[no tocar](esto.md)` tampoco.
+"""
+    resultado = rewrite_links(
+        contenido, "doc.md", lambda p, b: f"{b}/{p.replace('.md','')}", "base"
+    )
+    # El enlace normal SÍ se reescribe
+    assert "[guía](/base/guia)" in resultado
+    # El enlace dentro de ``` NO se toca
+    assert "[ejemplo](otro.md)" in resultado
+    # El enlace inline tampoco
+    assert "`[no tocar](esto.md)`" in resultado
+
+
+def test_imagen_en_bloque_codigo_no_se_toca(tmp_path):
+    """Las imágenes dentro de bloques ``` no deben reescribirse."""
+    # Crear imagen real
+    (tmp_path / "logo.png").write_bytes(b"PNG fake")
+    
+    contenido = """# Ejemplo
+
+Imagen real: ![logo](logo.png)
+
+```markdown
+![ejemplo](otra.png)
+```
+"""
+    subidas = []
+    def fake_upload(ruta, nombre):
+        subidas.append(nombre)
+        return "uploaded-" + nombre
+    
+    resultado = rewrite_images(contenido, "doc.md", tmp_path, fake_upload)
+    
+    # La imagen real SÍ se sube y reescribe
+    assert "![logo](/uploaded-logo.png)" in resultado
+    # La imagen dentro de ``` NO se toca
+    assert "![ejemplo](otra.png)" in resultado
+    # Solo se subió una imagen
+    assert len(subidas) == 1

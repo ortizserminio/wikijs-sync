@@ -5,6 +5,42 @@ import re
 import yaml
 
 
+# Patrón para bloques de código: ```...``` o ~~~...~~~
+# Usamos re.DOTALL para que . incluya saltos de línea
+_CODE_BLOCK_RE = re.compile(r"(```[\s\S]*?```|~~~[\s\S]*?~~~)")
+
+# Patrón para código inline: `...` (sin saltos de línea dentro)
+_CODE_INLINE_RE = re.compile(r"(`[^`\n]+`)")
+
+
+def _protect_code_blocks(content):
+    """Extrae bloques de código y los reemplaza por marcadores.
+    
+    Devuelve (contenido_sin_bloques, lista_de_bloques).
+    Los bloques se reemplazan por marcadores como <<<CODE_BLOCK_0>>>.
+    """
+    bloques = []
+    
+    def _guardar(match):
+        idx = len(bloques)
+        bloques.append(match.group(0))
+        return f"<<<CODE_BLOCK_{idx}>>>"
+    
+    # Primero los bloques ``` o ~~~
+    contenido = _CODE_BLOCK_RE.sub(_guardar, content)
+    # Luego los inline `código`
+    contenido = _CODE_INLINE_RE.sub(_guardar, contenido)
+    
+    return contenido, bloques
+
+
+def _restore_code_blocks(content, bloques):
+    """Restaura los bloques de código desde los marcadores."""
+    for idx, bloque in enumerate(bloques):
+        content = content.replace(f"<<<CODE_BLOCK_{idx}>>>", bloque)
+    return content
+
+
 def split_front_matter(text):
     """Separa el front matter (bloque entre '---') del contenido.
 
@@ -68,7 +104,12 @@ def rewrite_links(content, source_rel, compute_path, base_path, known_files=None
 
     Solo toca enlaces relativos que apuntan a ficheros .md. Deja intactos los
     enlaces externos (http...), anclas (#...) y los que no son .md.
+    
+    IMPORTANTE: No toca enlaces dentro de bloques de código (``` o `).
     """
+    # Proteger bloques de código para no tocarlos
+    contenido, bloques = _protect_code_blocks(content)
+    
     carpeta = posixpath.dirname(source_rel.replace("\\", "/"))
 
     def _sub(match):
@@ -97,7 +138,10 @@ def rewrite_links(content, source_rel, compute_path, base_path, known_files=None
         wiki_path = compute_path(objetivo, base_path)
         return f"[{texto}](/{wiki_path}{ancla})"
 
-    return _LINK_RE.sub(_sub, content)
+    contenido = _LINK_RE.sub(_sub, contenido)
+    
+    # Restaurar los bloques de código
+    return _restore_code_blocks(contenido, bloques)
 
 
 def add_notice(content, source_link=None):
@@ -135,8 +179,13 @@ def rewrite_images(content, source_rel, docs_dir, upload, uploaded=None):
     - uploaded:   dict opcional {ruta_local: nombre_en_wiki} para no subir dos veces la misma.
 
     Solo toca imágenes locales (no http). Deja intactas las externas.
+    
+    IMPORTANTE: No toca imágenes dentro de bloques de código (``` o `).
     """
     import os
+
+    # Proteger bloques de código para no tocarlos
+    contenido, bloques = _protect_code_blocks(content)
 
     carpeta = posixpath.dirname(source_rel.replace("\\", "/"))
     if uploaded is None:
@@ -169,4 +218,7 @@ def rewrite_images(content, source_rel, docs_dir, upload, uploaded=None):
         # En la wiki, un asset de la raíz queda accesible en /<nombre>
         return f"![{texto}](/{nombre_wiki})"
 
-    return _IMG_RE.sub(_sub, content)
+    contenido = _IMG_RE.sub(_sub, contenido)
+    
+    # Restaurar los bloques de código
+    return _restore_code_blocks(contenido, bloques)
