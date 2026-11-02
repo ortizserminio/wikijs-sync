@@ -242,4 +242,22 @@ def scan(docs_dir, base_path, default_locale="es", client=None, allowed_locales=
         for origen, destino in broken:
             print(f"    - en '{origen}' -> '{destino}' (el fichero no existe)")
 
+    # Detectar colisiones de path (varios ficheros generan el mismo path+locale).
+    # Esto puede pasar con Guía.md vs guia.md, o README.md vs index.md.
+    vistos = {}  # {(path, locale): fichero_origen}
+    colisiones = []
+    for p in paginas:
+        clave = (p["path"], p["locale"])
+        if clave in vistos:
+            colisiones.append((p["source"], vistos[clave], p["path"], p["locale"]))
+        else:
+            vistos[clave] = p["source"]
+    
+    if colisiones:
+        msg = "Colisión de paths: varios ficheros generan la misma página.\n"
+        for nuevo, existente, path, locale in colisiones:
+            msg += f"  - '{nuevo}' y '{existente}' → {path} [{locale}]\n"
+        msg += "Renombra uno de los ficheros para evitar que se pisen."
+        raise ScanError(msg)
+
     return paginas

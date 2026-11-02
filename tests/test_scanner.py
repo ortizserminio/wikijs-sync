@@ -176,3 +176,48 @@ Sin encabezado real aquí.
 """
     titulo = extract_title(contenido, "mi-fallback")
     assert titulo == "mi-fallback"
+
+
+# --- Test para Error 6: colisiones de path ---
+def test_colision_guia_mayuscula_minuscula(tmp_path):
+    """Detecta colisión cuando Guía.md y guia.md generan el mismo path."""
+    from wikijs_sync.scanner import scan, ScanError
+    import pytest
+    
+    # Ambos generan el mismo path: /base/guia
+    (tmp_path / "Guía.md").write_text("# Con tilde\n", encoding="utf-8")
+    (tmp_path / "guia.md").write_text("# Sin tilde\n", encoding="utf-8")
+    
+    with pytest.raises(ScanError) as exc:
+        scan(str(tmp_path), "base")
+    
+    assert "Colisión" in str(exc.value)
+    assert "guia" in str(exc.value).lower()
+
+
+def test_colision_readme_index(tmp_path):
+    """Detecta colisión cuando README.md e index.md están en la misma carpeta."""
+    from wikijs_sync.scanner import scan, ScanError
+    import pytest
+    
+    # Ambos representan la página de la carpeta raíz
+    (tmp_path / "README.md").write_text("# Readme\n", encoding="utf-8")
+    (tmp_path / "index.md").write_text("# Index\n", encoding="utf-8")
+    
+    with pytest.raises(ScanError) as exc:
+        scan(str(tmp_path), "base")
+    
+    assert "Colisión" in str(exc.value)
+
+
+def test_sin_colision_diferentes_idiomas(tmp_path):
+    """No es colisión si son el mismo fichero en diferentes idiomas."""
+    from wikijs_sync.scanner import scan
+    
+    # guia.md (es) y guia.va.md (va) comparten path pero distinto locale: OK
+    (tmp_path / "guia.md").write_text("# Guía ES\n", encoding="utf-8")
+    (tmp_path / "guia.va.md").write_text("# Guía VA\n", encoding="utf-8")
+    
+    # No debe lanzar error
+    paginas = scan(str(tmp_path), "base", allowed_locales={"es", "va"})
+    assert len(paginas) == 2
