@@ -70,34 +70,40 @@ docs_dir: docs
 
 
 def test_config_sin_base_path(tmp_path, env_vars):
-    """Falla si falta base_path en el YAML."""
+    """Falla con mensaje claro si falta base_path en el YAML."""
     cfg_file = tmp_path / "wikijs-sync.yml"
     cfg_file.write_text("""
 docs_dir: docs
 """)
 
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError) as exc:
         load_config(str(cfg_file))
+
+    assert "base_path" in str(exc.value)
 
 
 def test_config_sin_docs_dir(tmp_path, env_vars):
-    """Falla si falta docs_dir en el YAML."""
+    """Falla con mensaje claro si falta docs_dir en el YAML."""
     cfg_file = tmp_path / "wikijs-sync.yml"
     cfg_file.write_text("""
 base_path: pruebas
 """)
 
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError) as exc:
         load_config(str(cfg_file))
+
+    assert "docs_dir" in str(exc.value)
 
 
 def test_config_yaml_vacio(tmp_path, env_vars):
-    """Falla con un YAML vacío."""
+    """Falla con mensaje claro con un YAML vacío."""
     cfg_file = tmp_path / "wikijs-sync.yml"
     cfg_file.write_text("")
 
-    with pytest.raises((TypeError, KeyError, AttributeError)):
+    with pytest.raises(ValueError) as exc:
         load_config(str(cfg_file))
+
+    assert "vacío" in str(exc.value)
 
 
 def test_config_fichero_no_existe(env_vars):

@@ -16,8 +16,6 @@
 // - El agente de Jenkins debe poder ejecutar Docker.
 //
 // VARIANTES:
-// - Variante A (recomendada): Usar imagen Docker con la herramienta ya instalada.
-//   Más rápido, no instala nada en cada ejecución. Requiere Container Registry.
 // - Variante B: Instalar la herramienta con pip en cada ejecución.
 //   No requiere registry, pero más lento. Es la que viene por defecto aquí.
 //

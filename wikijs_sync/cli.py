@@ -22,7 +22,12 @@ def main(argv=None):
     )
     parser.add_argument(
         "--prune", action="store_true",
-        help="borra las páginas gestionadas que ya no están en el repositorio",
+        help="borra las páginas gestionadas que ya no están en el repositorio "
+             "(nota: no borra assets/imágenes; Wiki.js no lo permite vía API)",
+    )
+    parser.add_argument(
+        "--strict", action="store_true",
+        help="falla si hay enlaces internos rotos (por defecto solo avisa)",
     )
     args = parser.parse_args(argv)
 
@@ -44,6 +49,16 @@ def main(argv=None):
 
     if resumen["errores"]:
         print(f"{len(resumen['errores'])} página(s) con error.", file=sys.stderr)
+        return 1
+
+    # Con --strict, los enlaces rotos son un error (no solo un aviso).
+    if args.strict and resumen.get("enlaces_rotos"):
+        n = len(resumen["enlaces_rotos"])
+        print(
+            f"{n} enlace(s) interno(s) roto(s). "
+            "Con --strict, esto es un error.",
+            file=sys.stderr,
+        )
         return 1
 
     return 0

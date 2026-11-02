@@ -128,6 +128,22 @@ Y funciona con distintos sistemas de CI (el concepto es el mismo, cambia el fich
   una plantilla en `templates/Jenkinsfile` (variante B: instalación al vuelo).
 - **GitHub Actions**: usado para los ensayos (workflows en `.github/workflows/`).
 
+## Limitaciones conocidas
+
+### Assets huérfanos
+La opción `--prune` borra las **páginas** que ya no están en el repositorio, pero
+**no borra los assets** (imágenes subidas). Wiki.js 2.x no ofrece una API para
+borrar assets individuales; solo se pueden eliminar manualmente desde el panel de
+administración (Administración → Assets).
+
+En la práctica, los assets huérfanos no suelen ser muchos y no afectan al
+funcionamiento. Si se acumulan, se pueden limpiar manualmente.
+
+### Paginación de la API
+La consulta `list_pages` trae como máximo unas 1000 páginas. Si la wiki tiene más
+páginas gestionadas bajo el mismo `base_path`, la herramienta podría no verlas
+todas. En wikis de documentación típicas esto no es un problema.
+
 ## Estructura del proyecto
 ```
 wikijs-sync/

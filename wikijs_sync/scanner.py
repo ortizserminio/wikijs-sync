@@ -267,4 +267,4 @@ def scan(
         msg += "Renombra uno de los ficheros para evitar que se pisen."
         raise ScanError(msg)
 
-    return paginas
+    return paginas, broken

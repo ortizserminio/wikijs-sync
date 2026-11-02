@@ -55,7 +55,7 @@ def test_scan_varios_idiomas_comparten_path(tmp_path):
     from wikijs_sync.scanner import scan
     (tmp_path / "guia.md").write_text("# Guía\n", encoding="utf-8")
     (tmp_path / "guia.va.md").write_text("# Guia\n", encoding="utf-8")
-    paginas = scan(str(tmp_path), "pruebas", allowed_locales={"es", "va"})
+    paginas, _broken = scan(str(tmp_path), "pruebas", allowed_locales={"es", "va"})
     assert {(p["path"], p["locale"]) for p in paginas} == {
         ("pruebas/guia", "es"), ("pruebas/guia", "va"),
     }
@@ -64,8 +64,9 @@ def test_scan_varios_idiomas_comparten_path(tmp_path):
 def test_scan_aviso_con_enlace_al_origen(tmp_path):
     from wikijs_sync.scanner import scan
     (tmp_path / "guia.md").write_text("# Guía\n", encoding="utf-8")
-    pagina = scan(str(tmp_path), "pruebas",
-                  source_url="https://gitlab.umh.es/g/r/-/blob/master")[0]
+    paginas, _broken = scan(str(tmp_path), "pruebas",
+                            source_url="https://gitlab.umh.es/g/r/-/blob/master")
+    pagina = paginas[0]
     assert pagina["content"].startswith("> Esta página se genera automáticamente")
     assert "/guia.md)" in pagina["content"]
 
@@ -84,9 +85,9 @@ def test_imagen_mismo_contenido_en_dry_run_y_real(tmp_path):
     (tmp_path / "logo.png").write_bytes(b"png")
     (tmp_path / "a.md").write_text("# A\n![logo](logo.png)\n", encoding="utf-8")
     cliente = ClienteFalso()
-    real = scan(str(tmp_path), "pruebas/redes", client=cliente)[0]["content"]
-    dry = scan(str(tmp_path), "pruebas/redes", client=None)[0]["content"]
-    assert real == dry
+    paginas_real, _ = scan(str(tmp_path), "pruebas/redes", client=cliente)
+    paginas_dry, _ = scan(str(tmp_path), "pruebas/redes", client=None)
+    assert paginas_real[0]["content"] == paginas_dry[0]["content"]
     assert len(cliente.subidas) == 1
     assert cliente.subidas[0].startswith("pruebas-redes--logo-")
 
@@ -106,7 +107,7 @@ def test_imagen_ya_subida_no_se_vuelve_a_subir(tmp_path):
             self.subidas.append(nombre)
 
     cliente = ClienteFalso()
-    scan(str(tmp_path), "pruebas/redes", client=cliente)
+    _paginas, _broken = scan(str(tmp_path), "pruebas/redes", client=cliente)
     assert cliente.subidas == []
 
 
@@ -142,7 +143,7 @@ def test_scan_ignora_bom_de_windows(tmp_path):
     contenido_con_bom = b'\xef\xbb\xbf---\ntitle: Con BOM\n---\n# Titulo\n'
     (tmp_path / "doc.md").write_bytes(contenido_con_bom)
 
-    paginas = scan(str(tmp_path), "pruebas")
+    paginas, _broken = scan(str(tmp_path), "pruebas")
     assert len(paginas) == 1
     # El front matter debe haberse parseado bien (título del YAML, no del #)
     assert paginas[0]["title"] == "Con BOM"
@@ -225,5 +226,35 @@ def test_sin_colision_diferentes_idiomas(tmp_path):
     (tmp_path / "guia.va.md").write_text("# Guía VA\n", encoding="utf-8")
 
     # No debe lanzar error
-    paginas = scan(str(tmp_path), "base", allowed_locales={"es", "va"})
+    paginas, _broken = scan(str(tmp_path), "base", allowed_locales={"es", "va"})
     assert len(paginas) == 2
+
+
+
+# --- Test para Error 15: scan devuelve enlaces rotos ---
+def test_scan_devuelve_enlaces_rotos(tmp_path):
+    """scan() debe devolver la lista de enlaces rotos encontrados."""
+    from wikijs_sync.scanner import scan
+
+    # a.md enlaza a b.md que NO existe
+    (tmp_path / "a.md").write_text("# A\n[ver B](b.md)\n", encoding="utf-8")
+
+    paginas, broken = scan(str(tmp_path), "base")
+
+    assert len(paginas) == 1
+    # Debe haber detectado el enlace roto
+    assert len(broken) == 1
+    assert broken[0][1] == "b.md"  # (origen, destino_roto)
+
+
+def test_scan_sin_enlaces_rotos(tmp_path):
+    """Si todos los enlaces son válidos, broken está vacío."""
+    from wikijs_sync.scanner import scan
+
+    (tmp_path / "a.md").write_text("# A\n[ver B](b.md)\n", encoding="utf-8")
+    (tmp_path / "b.md").write_text("# B\n", encoding="utf-8")
+
+    paginas, broken = scan(str(tmp_path), "base")
+
+    assert len(paginas) == 2
+    assert broken == []

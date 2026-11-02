@@ -28,6 +28,24 @@ def load_config(config_path="wikijs-sync.yml"):
     with open(config_path, encoding="utf-8") as f:
         datos = yaml.safe_load(f)
 
+    # Validar que el YAML no está vacío
+    if not datos or not isinstance(datos, dict):
+        raise ValueError(
+            f"El fichero '{config_path}' está vacío o no es un YAML válido."
+        )
+
+    # Validar campos obligatorios
+    if "base_path" not in datos:
+        raise ValueError(
+            f"Falta 'base_path' en '{config_path}'. "
+            "Es la ruta base de las páginas en la wiki (ej: conocimiento/sistemas)."
+        )
+    if "docs_dir" not in datos:
+        raise ValueError(
+            f"Falta 'docs_dir' en '{config_path}'. "
+            "Es la carpeta con los ficheros .md (ej: docs)."
+        )
+
     wiki_url = os.environ.get("WIKI_URL")
     wiki_token = os.environ.get("WIKI_TOKEN")
     if not wiki_url or not wiki_token:

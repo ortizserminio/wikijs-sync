@@ -129,3 +129,53 @@ docs_dir: docs
 
         result = main(["--config", str(cfg_file)])
         assert result == 0
+
+
+
+# --- Test para Error 15: --strict falla si hay enlaces rotos ---
+def test_cli_strict_falla_con_enlaces_rotos(tmp_path, env_vars):
+    """Con --strict, sale con código 1 si hay enlaces rotos."""
+    cfg_file = tmp_path / "wikijs-sync.yml"
+    cfg_file.write_text("""
+base_path: pruebas
+docs_dir: docs
+""")
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "index.md").write_text("# Test\n")
+
+    with patch("wikijs_sync.cli.WikiJsClient"), \
+         patch("wikijs_sync.cli.sync") as mock_sync:
+
+        # Simula que sync detectó enlaces rotos
+        mock_sync.return_value = {
+            "errores": [],
+            "creadas": 1, "actualizadas": 0, "borradas": 0, "sin_cambios": 0,
+            "enlaces_rotos": [("a.md", "no-existe.md")],
+        }
+
+        result = main(["--config", str(cfg_file), "--strict"])
+        assert result == 1
+
+
+def test_cli_sin_strict_avisa_pero_no_falla(tmp_path, env_vars):
+    """Sin --strict, los enlaces rotos no hacen fallar (solo aviso)."""
+    cfg_file = tmp_path / "wikijs-sync.yml"
+    cfg_file.write_text("""
+base_path: pruebas
+docs_dir: docs
+""")
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "index.md").write_text("# Test\n")
+
+    with patch("wikijs_sync.cli.WikiJsClient"), \
+         patch("wikijs_sync.cli.sync") as mock_sync:
+
+        mock_sync.return_value = {
+            "errores": [],
+            "creadas": 1, "actualizadas": 0, "borradas": 0, "sin_cambios": 0,
+            "enlaces_rotos": [("a.md", "no-existe.md")],
+        }
+
+        # Sin --strict, debe salir con 0
+        result = main(["--config", str(cfg_file)])
+        assert result == 0

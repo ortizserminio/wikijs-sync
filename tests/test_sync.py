@@ -90,7 +90,8 @@ def test_un_error_no_detiene_el_resto(tmp_path):
 
 def test_cambio_solo_de_description_se_actualiza(tmp_path):
     (tmp_path / "a.md").write_text("---\ndescription: nueva\n---\n# A\n", encoding="utf-8")
-    deseada = scan(str(tmp_path), "pruebas/redes")[0]
+    paginas, _broken = scan(str(tmp_path), "pruebas/redes")
+    deseada = paginas[0]
     en_wiki = {
         "id": 1, "path": "pruebas/redes/a", "locale": "es", "title": "A",
         "description": "vieja", "content": deseada["content"], "tags": ["gitlab-sync:pruebas/redes"],
@@ -100,7 +101,8 @@ def test_cambio_solo_de_description_se_actualiza(tmp_path):
 
 def test_idempotente_aunque_wiki_cambie_saltos_de_linea(tmp_path):
     (tmp_path / "a.md").write_text("# A\n\ntexto\n", encoding="utf-8")
-    deseada = scan(str(tmp_path), "pruebas/redes")[0]
+    paginas, _broken = scan(str(tmp_path), "pruebas/redes")
+    deseada = paginas[0]
     en_wiki = {
         "id": 1, "path": "pruebas/redes/a", "locale": "es", "title": "A",
         "description": "", "content": deseada["content"] + "\n\n", "tags": ["gitlab-sync:pruebas/redes"],
