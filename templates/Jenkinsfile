@@ -15,12 +15,26 @@
 // - Credencial 'wikijs-token' de tipo "Secret text" con el token de Wiki.js.
 // - El agente de Jenkins debe poder ejecutar Docker.
 //
+// VARIANTES:
+// - Variante A (recomendada): Usar imagen Docker con la herramienta ya instalada.
+//   Más rápido, no instala nada en cada ejecución. Requiere Container Registry.
+// - Variante B: Instalar la herramienta con pip en cada ejecución.
+//   No requiere registry, pero más lento. Es la que viene por defecto aquí.
+//
 // =============================================================================
 
 pipeline {
     agent {
         docker {
-            // Imagen oficial de Python (no necesitamos imagen propia)
+            // ===============================================================
+            // VARIANTE A: Imagen con la herramienta ya instalada (más rápida)
+            // Descomenta esta línea y comenta la de python:3.12-slim
+            // ===============================================================
+            // image 'registry.umh.es/sipt/wikijs-sync:0.2.0'
+            
+            // ===============================================================
+            // VARIANTE B: Imagen oficial de Python (instala en cada ejecución)
+            // ===============================================================
             image 'python:3.12-slim'
             // -u root: para poder instalar git con apt-get
             args '-u root'
@@ -38,19 +52,20 @@ pipeline {
         // =====================================================================
         
         // URL de la wiki de la UMH (sin barra final)
-        WIKI_URL = 'http://URL-DE-LA-WIKI-UMH'
+        // ⚠️ IMPORTANTE: Usar HTTPS para que el token no viaje en claro
+        WIKI_URL = 'https://wiki.umh.es'
         
         // Token de la API de Wiki.js (guardado en Jenkins Credentials)
         WIKI_TOKEN = credentials('wikijs-token')
         
-        // URL del repositorio de la herramienta en GitLab
-        // (cambiar por la URL real cuando se suba al GitLab de la UMH)
-        HERRAMIENTA_URL = 'https://gitlab.umh.es/RUTA/wikijs-sync.git'
+        // URL del repositorio de la herramienta en GitLab (para variante B)
+        // Se fija la versión con @v0.2.0 para evitar cambios inesperados
+        HERRAMIENTA_URL = 'https://gitlab.umh.es/sipt/wikijs-sync.git@v0.2.0'
     }
 
     stages {
-        // Etapa 1: Instalar la herramienta
-        // La imagen python:3.12-slim no trae git, hay que instalarlo
+        // Etapa 1: Instalar la herramienta (solo variante B)
+        // Si usas variante A con imagen propia, comenta este stage completo
         stage('Instalar herramienta') {
             steps {
                 sh '''
@@ -95,6 +110,11 @@ pipeline {
 //   --dry-run   Simula la sincronización sin tocar la wiki (para probar)
 //   --prune     Borra de la wiki las páginas que ya no existen en el repo
 //
+// SEGURIDAD:
+// - Usar HTTPS en WIKI_URL para que el token no viaje en claro por la red.
+// - El token se guarda en Jenkins Credentials, nunca en el Jenkinsfile.
+// - Fijar la versión de la herramienta (@v0.2.0) para evitar sorpresas.
+//
 // TRIGGER AUTOMÁTICO (webhook):
 // En GitLab, configura un webhook que apunte a Jenkins para que se ejecute
 // automáticamente con cada push:
@@ -108,7 +128,7 @@ pipeline {
 // REPO PRIVADO:
 // Si el repo de la herramienta es privado, la línea 'pip install git+...' fallará.
 // Soluciones:
-// - Hacer el repo de la herramienta accesible (público o con deploy token)
-// - Usar una imagen Docker que ya tenga la herramienta instalada (variante A)
+// - Usar la variante A con imagen Docker que ya tiene la herramienta
+// - Configurar un deploy token en GitLab y usarlo en la URL
 //
 // =============================================================================

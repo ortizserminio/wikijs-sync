@@ -14,9 +14,11 @@ sync-wikijs:
   resource_group: wikijs-sync
   variables:
     # Versión de la herramienta a instalar desde su repositorio.
-    WIKIJS_SYNC_REF: "main"
+    # Fijar a un tag (v0.2.0) para evitar cambios inesperados.
+    WIKIJS_SYNC_REF: "v0.2.0"
   script:
     # 1. Instalar la herramienta wikijs-sync desde su repositorio Git.
-    - pip install --no-cache-dir "git+https://gitlab.example.com/GRUPO/wikijs-sync.git@${WIKIJS_SYNC_REF}"
+    #    Cambiar la URL por la del GitLab de la UMH.
+    - pip install --no-cache-dir "git+https://gitlab.umh.es/sipt/wikijs-sync.git@${WIKIJS_SYNC_REF}"
     # 2. Ejecutar la sincronización con reconciliación completa y borrado.
     - python -m wikijs_sync --config wikijs-sync.yml --prune

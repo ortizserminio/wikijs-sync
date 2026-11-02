@@ -44,4 +44,6 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/ortizserminio/wikijs-sync:latest
+          tags: |
+            ghcr.io/ortizserminio/wikijs-sync:latest
+            ghcr.io/ortizserminio/wikijs-sync:0.2.0
