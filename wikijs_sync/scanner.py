@@ -77,7 +77,9 @@ def compute_path(rel_path, base_path):
         partes[-1] = nombre  # sustituye 'requisitos.md' por 'requisitos'
 
     tramos = [slugify(x) for x in partes if x]
-    base = [slugify(x) for x in Path(base_path).parts if x] if base_path else []
+    # El base_path se respeta tal cual (sin slugify) para coincidir con los
+    # permisos de la wiki, que distingue mayúsculas/minúsculas.
+    base = list(Path(base_path).parts) if base_path else []
     return "/".join(base + tramos)
 
 def asset_name(base_path, ruta_disco):

@@ -70,9 +70,10 @@ def load_config(config_path="wikijs-sync.yml"):
 
     # Tag único por repo: incluye el base_path para evitar conflictos entre repos
     # con base_paths anidados (ej: conocimiento/sistemas vs conocimiento/sistemas/redes).
+    # El tag siempre va en minúsculas para ser consistente, aunque base_path tenga mayúsculas.
     tag_base = datos.get("tag", "gitlab-sync")
     base_path = datos["base_path"].strip("/")
-    tag = f"{tag_base}:{base_path}"
+    tag = f"{tag_base}:{base_path.lower()}"
 
     return Config(
         base_path=base_path,
